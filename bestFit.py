@@ -201,22 +201,25 @@ def getAllFormDataValues(maleInputDataElementId,femaleInputDataElementId,attribu
 
     return allFormsTotal
 
+def calculatePredictions(xValues,yValues,numberOfPredictions):
+    x = np.array(xValues)
+    y = np.array(yValues)
+
+        #find line of best fit
+    a, b = np.polyfit(x, y, 1)
+    predictions =[]
+    for p in range (1,numberOfPredictions+1):
+        y=(a*p+b)
+        predictions.append(round(y))
+    return predictions
+      
+
 
 for k in range (len(attributeOptions)):
     
     allFormsTotal = getAllFormDataValues(sumOfInputDataElement[0],sumOfInputDataElement[1],attributeOptions[k])
-    x = np.array(quarter_numbers)
-    y = np.array(allFormsTotal)
-
-        #find line of best fit
-    a, b = np.polyfit(x, y, 1)
+    predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
     
-    predictions =[]
-    for p in range (1,numberOfPastQuarters+numberOfFutureQuarters+1):
-        y=(a*p+b)
-        predictions.append(round(y))
-    print("Predictions for allFormsTB is: ", str(predictions))
-   
     allFormsDataValues= []
     for m in range(16):
         dataValue = { "categoryOptionCombo": defaultOption,
@@ -254,19 +257,10 @@ for i in range(len(inputDataElementIds)):
         outputDataElement = outputDataElementIds[i][j]
         attributeOption = attributeOptions[j]
         values = getDataValues(inputDataElement,orgUnit,periodString,attributeOption)
+        predictions = calculatePredictions(quarter_numbers,values,numberOfPastQuarters+numberOfFutureQuarters)
 
        
-        x = np.array(quarter_numbers)
-        y = np.array(values)
-
-        #find line of best fit
-        a, b = np.polyfit(x, y, 1)
-
-
-        predictions =[]
-        for p in range (1,numberOfPastQuarters+numberOfFutureQuarters+1):
-            y=(a*p+b)
-            predictions.append(round(y))
+        
 
        
         
