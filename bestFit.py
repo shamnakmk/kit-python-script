@@ -13,7 +13,6 @@ import time
 import math
 
 
-
 startTime = datetime.datetime.now()
 #
 # Convert month string to a sequential number, e.g.:
@@ -68,8 +67,10 @@ numberOfFutureQuarters = dhis['numberOfFutureQuarters']
 attributeOptions = dhis['attributeOptions']
 defaultOption = dhis['defaultOption']
 orgUnit = dhis['orgUnit']
-sumOfInputDataElement = dhis["sumOfInputDataElement"]
-sumOfOutputDataElement = dhis["sumOfOutputDataElement"]
+allFormsMaleDataElementId = dhis["allFormsMaleDataElementId"]
+allFormsFemaleDataElementId = dhis["allFormsFemaleDataElementId"]
+allFormsOutputDataElemenIds = dhis["allFormsOutputDataElemenIds"]
+
 
 
 
@@ -217,14 +218,14 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
 
 for k in range (len(attributeOptions)):
     
-    allFormsTotal = getAllFormDataValues(sumOfInputDataElement[0],sumOfInputDataElement[1],attributeOptions[k])
+    allFormsTotal = getAllFormDataValues(allFormsMaleDataElementId,allFormsFemaleDataElementId,attributeOptions[k])
     predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
     
     allFormsDataValues= []
     for m in range(16):
         dataValue = { "categoryOptionCombo": defaultOption,
             "attributeOptionCombo": defaultOption,
-            "dataElement":sumOfOutputDataElement[k],
+            "dataElement":allFormsOutputDataElemenIds[k],
             "period":pastAndFuturePeriods[m],
             "orgUnit": orgUnit,
             "value": str(predictions[m])
@@ -238,7 +239,7 @@ for k in range (len(attributeOptions)):
 
     allFormsPayload= {'dataValues': allFormsDataValues}
 
-    print('Pushing dataValues to dataElement=',str(sumOfOutputDataElement[k]),'with Payload=',str(allFormsPayload))
+    print('Pushing dataValues to dataElement=',str(allFormsOutputDataElemenIds[k]),'with Payload=',str(allFormsPayload))
     status = d2post("dataValueSets.json",allFormsPayload)
     print(status)
     
