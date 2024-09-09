@@ -11,6 +11,7 @@ import numpy
 import traceback
 import time
 import math
+import sys
 
 
 startTime = datetime.datetime.now()
@@ -72,10 +73,19 @@ allFormsFemaleDataElementId = dhis["allFormsFemaleDataElementId"]
 allFormsOutputDataElemenIds = dhis["allFormsOutputDataElemenIds"]
 
 
+#Validating config
 
+if len(inputDataElementIds) != len(outputDataElementIds):
+      print("Number of input dataElements does not match number of output data elements. Please check conf file")
+      sys.exit()
+for i in range (len(attributeOptions)):
+    if len(attributeOptions) != len(outputDataElementIds[i]):
+        print ("Number of attributeOptions is not equal to number of output data element set")
+        sys.exit()    
 
-
-
+if len(attributeOptions) != len(allFormsOutputDataElemenIds):
+    print ("Number of attributeOptions is not equal to number of allFormsOutputDataElemenIds")
+    sys.exit()
 
 try:
 	response = requests.get(api + 'me', auth=credentials)
@@ -108,7 +118,7 @@ def d2get(args, objects):
 def d2post(args, data):
 	return requests.post(api + args, json=data, auth=credentials)
 
-#
+
             
 def get_previous_periods(starting_period, number):
     periodsArray = []
@@ -179,28 +189,7 @@ def getDataValues(inputDataElementId,orgUnitId,periodsString,attributeOptionUid)
     print("Sorted Data Values Fetched:", str(values))
     return values
 
-def getAllFormDataValues(maleInputDataElementId,femaleInputDataElementId,attributeOption):
-    
-    male = maleInputDataElementId
-    female= femaleInputDataElementId
 
-    
-        
-
-    maleDataValues = getDataValues(male,orgUnit,periodString,attributeOption)
-    femaleDataValues = getDataValues(female,orgUnit,periodString,attributeOption)
-
-    print("Male DataElement Values:",str(maleDataValues))
-    print("Female DataElement Values:", str(femaleDataValues))
-
-    allFormsTotal = []
-
-    for l in range(len(maleDataValues)):
-        allFormsTotal.append(maleDataValues[l]+femaleDataValues[l])
-
-    print(allFormsTotal)
-
-    return allFormsTotal
 
 def calculatePredictions(xValues,yValues,numberOfPredictions):
     x = np.array(xValues)
@@ -218,7 +207,19 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
 
 for k in range (len(attributeOptions)):
     
-    allFormsTotal = getAllFormDataValues(allFormsMaleDataElementId,allFormsFemaleDataElementId,attributeOptions[k])
+    maleDataValues = getDataValues(allFormsMaleDataElementId,orgUnit,periodString,attributeOptions[k])
+    femaleDataValues = getDataValues(allFormsFemaleDataElementId,orgUnit,periodString,attributeOptions[k])
+    
+    if len(maleDataValues)!= pastPeriods:
+          print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction for attributOption "+str(attributeOptions[k]))
+          continue
+    if len(femaleDataValues)!= pastPeriods:
+          print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction for attributOption "+str(attributeOptions[k]))
+          continue
+    allFormsTotal = []
+    for l in range(len(maleDataValues)):
+        allFormsTotal.append(maleDataValues[l]+femaleDataValues[l])
+    
     predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
     
     allFormsDataValues= []
@@ -232,8 +233,6 @@ for k in range (len(attributeOptions)):
         }
     
         allFormsDataValues.append(dataValue)
-    print(" all from data value payload:",str(allFormsDataValues))
-
 
 
 
@@ -254,17 +253,18 @@ for i in range(len(inputDataElementIds)):
     
     
     for j in range(len(attributeOptions)):
-       
+        
         outputDataElement = outputDataElementIds[i][j]
         attributeOption = attributeOptions[j]
         values = getDataValues(inputDataElement,orgUnit,periodString,attributeOption)
+
+        if len(values)!=numberOfPastQuarters:
+              print("Past dataValues of " +str(inputDataElement)+ " for attrbuteoption " +attributeOption+ " is not matching the number of past periods")
+              continue
+
         predictions = calculatePredictions(quarter_numbers,values,numberOfPastQuarters+numberOfFutureQuarters)
 
-       
-        
-
-       
-        
+    
         print("Predictions for input:"+inputDataElement+",attributeOption:"+attributeOption+", is: "+ str(predictions))
 
         dataValues= []
