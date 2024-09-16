@@ -39,7 +39,7 @@ thisMonthNumber = toNumber(thisMonth)
 # load the configuration
 #
 if len(sys.argv) < 2:
-	configFile = '/usr/local/etc/dashcalc.conf'
+	configFile = '/usr/local/etc/bestFit.conf'
 else:
     configFile = sys.argv[1]
 
@@ -65,11 +65,10 @@ outputDataElementIds = dhis['outputDataElementIds']
 period = dhis['period']
 numberOfPastQuarters = dhis['numberOfPastQuarters']
 numberOfFutureQuarters = dhis['numberOfFutureQuarters']
-attributeOptions = dhis['attributeOptions']
 defaultOption = dhis['defaultOption']
-orgUnit = dhis['orgUnit']
-allFormsMaleDataElementId = dhis["allFormsMaleDataElementId"]
-allFormsFemaleDataElementId = dhis["allFormsFemaleDataElementId"]
+orgUnits = dhis['orgUnits']
+allFormsMaleDataElementIds = dhis["allFormsMaleDataElementIds"]
+allFormsFemaleDataElementIds = dhis["allFormsFemaleDataElementIds"]
 allFormsOutputDataElemenIds = dhis["allFormsOutputDataElemenIds"]
 
 
@@ -78,14 +77,7 @@ allFormsOutputDataElemenIds = dhis["allFormsOutputDataElemenIds"]
 if len(inputDataElementIds) != len(outputDataElementIds):
       print("Number of input dataElements does not match number of output data elements. Please check conf file")
       sys.exit()
-for i in range (len(attributeOptions)):
-    if len(attributeOptions) != len(outputDataElementIds[i]):
-        print ("Number of attributeOptions is not equal to number of output data element set")
-        sys.exit()    
 
-if len(attributeOptions) != len(allFormsOutputDataElemenIds):
-    print ("Number of attributeOptions is not equal to number of allFormsOutputDataElemenIds")
-    sys.exit()
 
 try:
 	response = requests.get(api + 'me', auth=credentials)
@@ -103,7 +95,7 @@ except Exception as e:
 def d2get(args, objects):
 	retry = 0 # Sometimes gets a [502] error, waiting and retrying helps
 	while True:
-		# print(api + args) # debug
+		print(api + args) # debug
 		response = requests.get(api + args.replace('[','%5B').replace(']','%5D'), auth=credentials)
 		try:
 			# print(api + args + ' --', len(response.json()[objects]))
@@ -119,7 +111,9 @@ def d2post(args, data):
 	return requests.post(api + args, json=data, auth=credentials)
 
 
-            
+#organisationUnit = d2get('organisationUnits','organisationUnits')
+#print(organisationUnit)
+           
 def get_previous_periods(starting_period, number):
     periodsArray = []
     
@@ -174,9 +168,9 @@ for q in range(1,numberOfPastQuarters+1):
 #create a function that accepts a inputDataElementId, periodsString, orgUnit and AttributeOption Uid
 #Returns 12 data values for that inputDataElementId
 
-def getDataValues(inputDataElementId,orgUnitId,periodsString,attributeOptionUid):
-    print("Fetching data values for data element:"+inputDataElementId+",attributeOption:"+attributeOptionUid)
-    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+'&attributeOptionCombo='+attributeOptionUid,'dataValues')
+def getDataValues(inputDataElementId,orgUnitId,periodsString):
+    print("Fetching data values for data element:"+inputDataElementId)
+    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
 
     #Sort Data Values in ascending order of quarters
     # Sort based on the 'age' key
@@ -203,78 +197,85 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
         predictions.append(round(y))
     return predictions
       
+for p in range (len(orgUnits)):
+    orgUnit = orgUnits[p]
+    print("fetched orgUnit is " + orgUnit)
 
-
-for k in range (len(attributeOptions)):
+    for k in range(len(allFormsOutputDataElemenIds)):
     
-    maleDataValues = getDataValues(allFormsMaleDataElementId,orgUnit,periodString,attributeOptions[k])
-    femaleDataValues = getDataValues(allFormsFemaleDataElementId,orgUnit,periodString,attributeOptions[k])
-    
-    if len(maleDataValues)!= pastPeriods:
-          print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction for attributOption "+str(attributeOptions[k]))
-          continue
-    if len(femaleDataValues)!= pastPeriods:
-          print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction for attributOption "+str(attributeOptions[k]))
-          continue
-    allFormsTotal = []
-    for l in range(len(maleDataValues)):
-        allFormsTotal.append(maleDataValues[l]+femaleDataValues[l])
-    
-    predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
-    
-    allFormsDataValues= []
-    for m in range(16):
-        dataValue = { "categoryOptionCombo": defaultOption,
-            "attributeOptionCombo": defaultOption,
-            "dataElement":allFormsOutputDataElemenIds[k],
-            "period":pastAndFuturePeriods[m],
-            "orgUnit": orgUnit,
-            "value": str(predictions[m])
-        }
-    
-        allFormsDataValues.append(dataValue)
+        maleDataValues = getDataValues(allFormsMaleDataElementIds[k],orgUnit,periodString)
+        femaleDataValues = getDataValues(allFormsFemaleDataElementIds[k],orgUnit,periodString)
+        print("male data values is:" + str(maleDataValues) )
+        print("female data values is:" + str(femaleDataValues) )
 
 
+        print("fetched orgUnit is " + orgUnit)
 
-    allFormsPayload= {'dataValues': allFormsDataValues}
-
-    print('Pushing dataValues to dataElement=',str(allFormsOutputDataElemenIds[k]),'with Payload=',str(allFormsPayload))
-    status = d2post("dataValueSets.json",allFormsPayload)
-    print(status)
-    
-
-
-
-
-
-for i in range(len(inputDataElementIds)):
-    
-    inputDataElement = inputDataElementIds[i]
-    
-    
-    for j in range(len(attributeOptions)):
+        if len(maleDataValues)!= numberOfPastQuarters:
+            print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        if len(femaleDataValues)!= numberOfPastQuarters:
+            print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        allFormsTotal = []
+        for l in range(len(maleDataValues)):
+            allFormsTotal.append(maleDataValues[l]+femaleDataValues[l])
         
-        outputDataElement = outputDataElementIds[i][j]
-        attributeOption = attributeOptions[j]
-        values = getDataValues(inputDataElement,orgUnit,periodString,attributeOption)
+        predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
+        
+        print("fetched orgUnit is " + orgUnit)
+
+        allFormsDataValues= []
+        for m in range(16):
+            dataValue = { "categoryOptionCombo": defaultOption,
+                "attributeOptionCombo": defaultOption,
+                "dataElement":allFormsOutputDataElemenIds[k],
+                "period":pastAndFuturePeriods[m],
+                "orgUnit": orgUnit,
+                "value": str(predictions[m])
+            }
+        
+            allFormsDataValues.append(dataValue)
+
+
+
+        allFormsPayload= {'dataValues': allFormsDataValues}
+
+        print('Pushing All Forms dataValues to dataElement=',str(allFormsOutputDataElemenIds[k]),'with Payload=',str(allFormsPayload))
+        status = d2post("dataValueSets.json",allFormsPayload)
+        print(status)
+    
+
+
+
+for q in range (len(orgUnits)):
+    orgUnit = orgUnits[q]
+    print("fetched orgUnit is" + orgUnit)
+
+    for i in range(len(inputDataElementIds)):
+        
+        inputDataElement = inputDataElementIds[i]
+        outputDataElement = outputDataElementIds[i]
+        
+        
+        values = getDataValues(inputDataElement,orgUnit,periodString)
 
         if len(values)!=numberOfPastQuarters:
-              print("Past dataValues of " +str(inputDataElement)+ " for attrbuteoption " +attributeOption+ " is not matching the number of past periods")
-              continue
+            print("Past dataValues of " +str(inputDataElement)+ " is not matching the number of past periods")
+            continue
 
         predictions = calculatePredictions(quarter_numbers,values,numberOfPastQuarters+numberOfFutureQuarters)
 
     
-        print("Predictions for input:"+inputDataElement+",attributeOption:"+attributeOption+", is: "+ str(predictions))
-
+        
         dataValues= []
         for o in range(16):
             dataValue = { "categoryOptionCombo": defaultOption,
                 "attributeOptionCombo": defaultOption,
                 "dataElement":outputDataElement,
-                 "period":pastAndFuturePeriods[o],
-                 "orgUnit": orgUnit,
-                 "value": str(predictions[o])
+                "period":pastAndFuturePeriods[o],
+                "orgUnit": orgUnit,
+                "value": str(predictions[o])
             }
     
             dataValues.append(dataValue)
