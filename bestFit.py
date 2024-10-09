@@ -70,6 +70,14 @@ orgUnits = dhis['orgUnits']
 allFormsMaleDataElementIds = dhis["allFormsMaleDataElementIds"]
 allFormsFemaleDataElementIds = dhis["allFormsFemaleDataElementIds"]
 allFormsOutputDataElemenIds = dhis["allFormsOutputDataElemenIds"]
+pulmonaryBNR = dhis["pulmonaryBNR"]
+pulmonaryBOther = dhis["pulmonaryBOther"]
+pulmonaryCDNR = dhis["pulmonaryCDNR"]
+pulmonaryCDOther = dhis["pulmonaryCDOther"]
+extraPulmonaryNR = dhis["extraPulmonaryNR"]
+extraPulmonaryOther = dhis["extraPulmonaryOther"]
+
+                    
 
 
 #Validating config
@@ -203,27 +211,44 @@ for p in range (len(orgUnits)):
 
     for k in range(len(allFormsOutputDataElemenIds)):
     
-        maleDataValues = getDataValues(allFormsMaleDataElementIds[k],orgUnit,periodString)
-        femaleDataValues = getDataValues(allFormsFemaleDataElementIds[k],orgUnit,periodString)
-        print("male data values is:" + str(maleDataValues) )
-        print("female data values is:" + str(femaleDataValues) )
+        #maleDataValues = getDataValues(allFormsMaleDataElementIds[k],orgUnit,periodString)
+        #femaleDataValues = getDataValues(allFormsFemaleDataElementIds[k],orgUnit,periodString)
+        #print("male data values is:" + str(maleDataValues) )
+        #print("female data values is:" + str(femaleDataValues) )
+        pulmonaryBNRDataValues = getDataValues( pulmonaryBNR[k],orgUnit,periodString)
+        pulmonaryBOtherDataValues = getDataValues( pulmonaryBOther[k],orgUnit,periodString)
+        pulmonaryCDNRDataValues = getDataValues( pulmonaryCDNR[k],orgUnit,periodString)
+        pulmonaryCDOtherDataValues = getDataValues( pulmonaryCDOther[k],orgUnit,periodString)
+        extraPulmonaryNRDataValues = getDataValues( extraPulmonaryNR[k],orgUnit,periodString)
+        extraPulmonaryOtherDataValues = getDataValues( extraPulmonaryOther[k],orgUnit,periodString)
 
 
-        print("fetched orgUnit is " + orgUnit)
+        
 
-        if len(maleDataValues)!= numberOfPastQuarters:
-            print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+        if len(pulmonaryBNRDataValues)!= numberOfPastQuarters:
+            print("Number of pulmonaryBNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
             continue
-        if len(femaleDataValues)!= numberOfPastQuarters:
-            print("Number of maleDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+        if len(pulmonaryBOtherDataValues)!= numberOfPastQuarters:
+            print("Number of pulmonaryBOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        if len(pulmonaryCDNRDataValues)!= numberOfPastQuarters:
+            print("Number of pulmonaryCDNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        if len(pulmonaryCDOtherDataValues)!= numberOfPastQuarters:
+            print("Number of pulmonaryCDOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        if len(extraPulmonaryNRDataValues)!= numberOfPastQuarters:
+            print("Number of extraPulmonaryNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            continue
+        if len(extraPulmonaryOtherDataValues)!= numberOfPastQuarters:
+            print("Number of extraPulmonaryOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
             continue
         allFormsTotal = []
-        for l in range(len(maleDataValues)):
-            allFormsTotal.append(maleDataValues[l]+femaleDataValues[l])
+        for l in range(len(pulmonaryBNRDataValues)):
+            allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
         
         predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
-        
-        print("fetched orgUnit is " + orgUnit)
+        print("AllForms Predictions:"+str(predictions))
 
         allFormsDataValues= []
         for m in range(16):
@@ -265,8 +290,8 @@ for q in range (len(orgUnits)):
             continue
 
         predictions = calculatePredictions(quarter_numbers,values,numberOfPastQuarters+numberOfFutureQuarters)
+        print("Predictions:"+str(predictions))
 
-    
         
         dataValues= []
         for o in range(16):
