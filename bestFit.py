@@ -103,7 +103,7 @@ except Exception as e:
 def d2get(args, objects):
 	retry = 0 # Sometimes gets a [502] error, waiting and retrying helps
 	while True:
-		print(api + args) # debug
+		# print(api + args) # debug
 		response = requests.get(api + args.replace('[','%5B').replace(']','%5D'), auth=credentials)
 		try:
 			# print(api + args + ' --', len(response.json()[objects]))
@@ -162,8 +162,8 @@ pastPeriods.sort()
 pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
 
 pastAndFuturePeriods.sort()
-print(pastPeriods)
-print(pastAndFuturePeriods)
+#print(pastPeriods)
+#print(pastAndFuturePeriods)
 periodString = ''
 for i in range (len(pastPeriods)):
     periodString += '&period='+pastPeriods[i]
@@ -177,7 +177,7 @@ for q in range(1,numberOfPastQuarters+1):
 #Returns 12 data values for that inputDataElementId
 
 def getDataValues(inputDataElementId,orgUnitId,periodsString):
-    print("Fetching data values for data element:"+inputDataElementId)
+    #print("Fetching data values for data element:"+inputDataElementId)
     dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
 
     #Sort Data Values in ascending order of quarters
@@ -188,9 +188,50 @@ def getDataValues(inputDataElementId,orgUnitId,periodsString):
     for d in range(len(dataValuesSorted)):
         values.append(int(dataValuesSorted[d]['value']))
 
-    print("Sorted Data Values Fetched:", str(values))
+
+    #print("Sorted Data Values Fetched:", str(values))
     return values
 
+def getDataValuesResult(inputDataElementId,orgUnitId,periodsString):
+    #print("Fetching data values for data element:"+inputDataElementId)
+    return d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
+
+
+def sortAndNumerifyDataValues(dataValuesResult):
+    #Sort Data Values in ascending order of quarters
+    # Sort based on the 'age' key
+    dataValuesSorted = sorted(dataValuesResult, key=itemgetter('period'))
+
+    values=[]
+    for d in range(len(dataValuesSorted)):
+        if dataValuesSorted[d]['value'] is not None and str(dataValuesSorted[d]['value']).isdigit():
+            values.append(int(dataValuesSorted[d]['value']))
+        else:
+            print('Got a non numeric data value=',dataValuesSorted[d]['value'])
+
+    #print("Sorted Data Values Fetched:", str(values))
+    return values
+
+def getDataValuesWithZeroes(inputDataElementId,orgUnitId,periodsString):
+    #print("Fetching data values for data element:"+inputDataElementId)
+    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
+    periodDataValues= {}
+    for s in range (len(dataValuesResult)):
+         periodDataValues[dataValuesResult[s]["period"]] = int(dataValuesResult[s]["value"])
+
+
+    values=[]
+
+    for p in range(len(pastPeriods)):
+        period = pastPeriods[p]
+        if period in periodDataValues:
+             values.append(periodDataValues[period])
+        else:
+             values.append(0)
+             
+         
+    #print("Sorted Data Values Fetched:", str(values))
+    return values
 
 
 def calculatePredictions(xValues,yValues,numberOfPredictions):
@@ -204,10 +245,16 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
         y=(a*p+b)
         predictions.append(round(y))
     return predictions
+
+skippedAllFormsPredictions = []
+skippedNRPredictions = []
+
+pushedAllFormsPredictions = []
+pushedNRPredictions = []
       
 for p in range (len(orgUnits)):
     orgUnit = orgUnits[p]
-    print("fetched orgUnit is " + orgUnit)
+    #print("fetched orgUnit is " + orgUnit)
 
     for k in range(len(allFormsOutputDataElemenIds)):
     
@@ -215,40 +262,60 @@ for p in range (len(orgUnits)):
         #femaleDataValues = getDataValues(allFormsFemaleDataElementIds[k],orgUnit,periodString)
         #print("male data values is:" + str(maleDataValues) )
         #print("female data values is:" + str(femaleDataValues) )
-        pulmonaryBNRDataValues = getDataValues( pulmonaryBNR[k],orgUnit,periodString)
-        pulmonaryBOtherDataValues = getDataValues( pulmonaryBOther[k],orgUnit,periodString)
-        pulmonaryCDNRDataValues = getDataValues( pulmonaryCDNR[k],orgUnit,periodString)
-        pulmonaryCDOtherDataValues = getDataValues( pulmonaryCDOther[k],orgUnit,periodString)
-        extraPulmonaryNRDataValues = getDataValues( extraPulmonaryNR[k],orgUnit,periodString)
-        extraPulmonaryOtherDataValues = getDataValues( extraPulmonaryOther[k],orgUnit,periodString)
+        pulmonaryBNRDataValuesResult = getDataValuesResult( pulmonaryBNR[k],orgUnit,periodString)
+        if len(pulmonaryBNRDataValuesResult)!= numberOfPastQuarters:
+            print("Number of pulmonaryBNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-pulmonaryBNRDataValues")
+            continue
+
+        pulmonaryBOtherDataValuesResult = getDataValuesResult( pulmonaryBOther[k],orgUnit,periodString)
+        if len(pulmonaryBOtherDataValuesResult)!= numberOfPastQuarters:
+            print("Number of pulmonaryBOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-pulmonaryBOtherDataValues")
+            continue
 
 
+        pulmonaryCDNRDataValuesResult = getDataValuesResult( pulmonaryCDNR[k],orgUnit,periodString)
+        if len(pulmonaryCDNRDataValuesResult)!= numberOfPastQuarters:
+            print("Number of pulmonaryCDNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-pulmonaryCDNRDataValues")
+            continue
+
+
+        pulmonaryCDOtherDataValuesResult = getDataValuesResult( pulmonaryCDOther[k],orgUnit,periodString)
+        if len(pulmonaryCDOtherDataValuesResult)!= numberOfPastQuarters:
+            print("Number of pulmonaryCDOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-pulmonaryCDOtherDataValues")
+            continue
+
+
+        extraPulmonaryNRDataValuesResult = getDataValuesResult( extraPulmonaryNR[k],orgUnit,periodString)
+        if len(extraPulmonaryNRDataValuesResult)!= numberOfPastQuarters:
+            print("Number of extraPulmonaryNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-extraPulmonaryNRDataValues")
+            continue
+
+
+        extraPulmonaryOtherDataValuesResult = getDataValuesResult( extraPulmonaryOther[k],orgUnit,periodString)
+        if len(extraPulmonaryOtherDataValuesResult)!= numberOfPastQuarters:
+            print("Number of extraPulmonaryOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
+            skippedAllFormsPredictions.append(orgUnit+"-extraPulmonaryOtherDataValues")
+            continue
+
+        pulmonaryBNRDataValues = sortAndNumerifyDataValues(pulmonaryBNRDataValuesResult)
+        pulmonaryBOtherDataValues = sortAndNumerifyDataValues(pulmonaryBOtherDataValuesResult)
+        pulmonaryCDNRDataValues = sortAndNumerifyDataValues(pulmonaryCDNRDataValuesResult)
+        pulmonaryCDOtherDataValues = sortAndNumerifyDataValues(pulmonaryCDOtherDataValuesResult)
+        extraPulmonaryNRDataValues = sortAndNumerifyDataValues(extraPulmonaryNRDataValuesResult)
+        extraPulmonaryOtherDataValues = sortAndNumerifyDataValues(extraPulmonaryOtherDataValuesResult)
         
 
-        if len(pulmonaryBNRDataValues)!= numberOfPastQuarters:
-            print("Number of pulmonaryBNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
-        if len(pulmonaryBOtherDataValues)!= numberOfPastQuarters:
-            print("Number of pulmonaryBOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
-        if len(pulmonaryCDNRDataValues)!= numberOfPastQuarters:
-            print("Number of pulmonaryCDNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
-        if len(pulmonaryCDOtherDataValues)!= numberOfPastQuarters:
-            print("Number of pulmonaryCDOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
-        if len(extraPulmonaryNRDataValues)!= numberOfPastQuarters:
-            print("Number of extraPulmonaryNRDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
-        if len(extraPulmonaryOtherDataValues)!= numberOfPastQuarters:
-            print("Number of extraPulmonaryOtherDataValues is not equals number of pastPeriods. Skipping all forms prediction")
-            continue
         allFormsTotal = []
         for l in range(len(pulmonaryBNRDataValues)):
             allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
         
         predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
-        print("AllForms Predictions:"+str(predictions))
+        # print("AllForms Predictions:"+str(predictions))
 
         allFormsDataValues= []
         for m in range(16):
@@ -266,16 +333,17 @@ for p in range (len(orgUnits)):
 
         allFormsPayload= {'dataValues': allFormsDataValues}
 
-        print('Pushing All Forms dataValues to dataElement=',str(allFormsOutputDataElemenIds[k]),'with Payload=',str(allFormsPayload))
+        # print('Pushing All Forms dataValues to dataElement=',str(allFormsOutputDataElemenIds[k]),'with Payload=',str(allFormsPayload))
         status = d2post("dataValueSets.json",allFormsPayload)
         print(status)
+        pushedAllFormsPredictions.append(orgUnit)
     
 
 
 
 for q in range (len(orgUnits)):
     orgUnit = orgUnits[q]
-    print("fetched orgUnit is" + orgUnit)
+    # print("fetched orgUnit is" + orgUnit)
 
     for i in range(len(inputDataElementIds)):
         
@@ -283,14 +351,16 @@ for q in range (len(orgUnits)):
         outputDataElement = outputDataElementIds[i]
         
         
-        values = getDataValues(inputDataElement,orgUnit,periodString)
+        dataValuesResult = getDataValuesResult(inputDataElement,orgUnit,periodString)
 
-        if len(values)!=numberOfPastQuarters:
+        if len(dataValuesResult)!=numberOfPastQuarters:
             print("Past dataValues of " +str(inputDataElement)+ " is not matching the number of past periods")
+            skippedNRPredictions.append(orgUnit+"-"+str(inputDataElement))
             continue
 
+        values = sortAndNumerifyDataValues(dataValuesResult)
         predictions = calculatePredictions(quarter_numbers,values,numberOfPastQuarters+numberOfFutureQuarters)
-        print("Predictions:"+str(predictions))
+       #  print("Predictions:"+str(predictions))
 
         
         dataValues= []
@@ -310,8 +380,22 @@ for q in range (len(orgUnits)):
 
         payload= {}
         payload['dataValues'] = dataValues
-        print('Pushing dataValues to dataElement='+outputDataElement+ ' with Payload='+str(payload))
+        # print('Pushing dataValues to dataElement='+outputDataElement+ ' with Payload='+str(payload))
         status = d2post("dataValueSets.json",payload)
         print(status)
+        pushedNRPredictions.append(orgUnit+"-"+outputDataElement)
+
+
+print("Predictions Run Summary")
+print("Total AllForms predictions pushed:"+str(len(pushedAllFormsPredictions)))
+print("Total NR predictions pushed:"+str(len(pushedNRPredictions)))
+print("Total AllForms predictions skipped due to missing data:"+str(len(skippedAllFormsPredictions)))
+print("Total NR predictions skipped due to missing data:"+str(len(skippedNRPredictions)))
+
+print("Skip Summary")
+print("All Forms Predictions Skipped (OrgUnitId-DataElement)")
+print(skippedAllFormsPredictions)
+print("NR Predictions Skipped (OrgUnitId-DataElement)")
+print(skippedNRPredictions)
 
 
