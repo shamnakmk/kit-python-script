@@ -309,8 +309,6 @@ quarter_numbers=[]
 for q in range(1,numberOfPastQuarters+1):
     quarter_numbers.append(q)
 
-
-
 skippedAllFormsPredictions = []
 skippedNRPredictions = []
 
@@ -360,7 +358,7 @@ for i in range(0, len(orgUnits), batch_size):
             print(outputDataElement)
             print(dataValuesForDE)
             print(predictions)
-            for o in range(16):
+            for o in range(len(pastAndFuturePeriods)):
                 dataValue = { "categoryOptionCombo": defaultOption,
                 "attributeOptionCombo": defaultOption,
                 "dataElement":outputDataElement,
@@ -394,9 +392,10 @@ for i in range(0, len(orgUnits), batch_size):
             allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
         
         predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
-        # print("AllForms Predictions:"+str(predictions))
+        print("All Forms values", allFormsTotal)
+        print("AllForms Predictions:"+str(predictions))
 
-        for m in range(16):
+        for m in range(len(pastAndFuturePeriods)):
             dataValue = { "categoryOptionCombo": defaultOption,
                 "attributeOptionCombo": defaultOption,
                 "dataElement":allFormsOutputDataElementId,
@@ -404,13 +403,13 @@ for i in range(0, len(orgUnits), batch_size):
                 "orgUnit": orgUnit,
                 "value": str(predictions[m])
             }
-        
-        predictedAllFormsDataValues.append(dataValue)
+            predictedAllFormsDataValues.append(dataValue)
+
         pushedAllFormsPredictions.append(orgUnit)
 
     payload= {}
     payload['dataValues'] = predictedNRDataValues + predictedAllFormsDataValues
-    print('Pushing dataValues to dataElement='+outputDataElement+ ' with Payload='+str(payload))
+    print('Pushing dataValues with Payload='+str(payload))
         
     status = d2post("dataValueSets.json",payload)
     print(status)
