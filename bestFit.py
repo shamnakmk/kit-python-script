@@ -66,7 +66,7 @@ period = dhis['period']
 numberOfPastQuarters = dhis['numberOfPastQuarters']
 numberOfFutureQuarters = dhis['numberOfFutureQuarters']
 defaultOption = dhis['defaultOption']
-orgUnits = dhis['orgUnits']
+dataSetIds = dhis['dataSetIds']
 allFormsOutputDataElementId = dhis["allFormsOutputDataElementId"]
 pulmonaryBNR = dhis["pulmonaryBNR"]
 pulmonaryBOther = dhis["pulmonaryBOther"]
@@ -94,9 +94,10 @@ except Exception as e:
 	print('Cannot connect to DHIS 2 system at "' + baseUrl + '" with username "' + dhis['username'] + '":', e)
 	sys.exit(1)
 
+###################### HELPER FUNCTIONS START ################################
 
 #
-# Handy functions for accessing dhis 2
+# Handy function for getting data our of dhis2
 #
 def d2get(args, objects):
 	retry = 0 # Sometimes gets a [502] error, waiting and retrying helps
@@ -113,13 +114,19 @@ def d2get(args, objects):
 				raise
 			time.sleep(2)
 
+#
+# Handy function for putting data into dhis2
+#
 def d2post(args, data):
 	return requests.post(api + args, json=data, auth=credentials)
 
 
-#organisationUnit = d2get('organisationUnits','organisationUnits')
-#print(organisationUnit)
-           
+#
+# Function to get previous periods in the form of 2024Q1, 2024Q2 and so on
+# starting_period : to indicate from which quarter (like 2024Q3) the count up should begin
+# number : to indicate how many previous periods has to be generated
+# returns an array that contains the required number of previous periods.
+#
 def get_previous_periods(starting_period, number):
     periodsArray = []
     
@@ -136,8 +143,13 @@ def get_previous_periods(starting_period, number):
     
     return periodsArray
 
-# Get periods dynamically based on the starting period from the config
 
+#
+# Function to get future periods in the form of 2024Q1, 2024Q2 and so on
+# starting_period : to indicate from which quarter (like 2024Q3) the count down should begin
+# number : to indicate how many future periods has to be generated
+# returns an array that contains the required number of future periods.
+#
 def get_future_periods(starting_period, number):
     futurePeriodsArray = []
     
@@ -153,29 +165,6 @@ def get_future_periods(starting_period, number):
         futurePeriodsArray.append(f"{year}Q{quarter}") # Reset to previous year's Q4
     
     return futurePeriodsArray
-
-#create a function that accepts a inputDataElementId, periodsString, orgUnit and AttributeOption Uid
-#Returns 12 data values for that inputDataElementId
-
-def getDataValues(inputDataElementId,orgUnitId,periodsString):
-    #print("Fetching data values for data element:"+inputDataElementId)
-    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
-
-    #Sort Data Values in ascending order of quarters
-    # Sort based on the 'age' key
-    dataValuesSorted = sorted(dataValuesResult, key=itemgetter('period'))
-
-    values=[]
-    for d in range(len(dataValuesSorted)):
-        values.append(int(dataValuesSorted[d]['value']))
-
-
-    #print("Sorted Data Values Fetched:", str(values))
-    return values
-
-def getDataValuesResult(inputDataElementId,orgUnitId,periodsString):
-    #print("Fetching data values for data element:"+inputDataElementId)
-    return d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
 
 def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,periodsString, fillZeroes, requiredPeriods):
     requiredPeriods.sort()
@@ -244,7 +233,6 @@ def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,period
     return dataValueMap
 
 
-
 def sortAndNumerifyDataValues(dataValuesResult):
     #Sort Data Values in ascending order of quarters
     # Sort based on the 'age' key
@@ -294,24 +282,28 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
         predictions.append(round(y))
     return predictions
 
+###################### HELPER FUNCTIONS END ################################
+
+###################### PREDICTION CALCULATION BEGINS #########################
+
 pastPeriods = get_previous_periods(period,numberOfPastQuarters)
 pastPeriods.sort()
-pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
 
+pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
 pastAndFuturePeriods.sort()
-#print(pastPeriods)
-#print(pastAndFuturePeriods)
-periodString = ''
+
+pastPeriodString = ''
 for i in range (len(pastPeriods)):
-    periodString += '&period='+pastPeriods[i]
+    pastPeriodString += '&period='+pastPeriods[i]
 
 quarter_numbers=[]
 for q in range(1,numberOfPastQuarters+1):
     quarter_numbers.append(q)
 
+
+#Array variables for holding the summary of script run.
 skippedAllFormsPredictions = []
 skippedNRPredictions = []
-
 pushedAllFormsPredictions = []
 pushedNRPredictions = []
 coveredOrgUnits = 0;
@@ -319,13 +311,23 @@ skippedOrgUnits = 0;
 
 
 batch_size = 10
-# Loop through the orgUnitIds in batches of 10
+# batch_size variable is used to loop through the orgUnitIds in those batches
+
+
+#Collect all orgUnits that are attached to the dataSetIds
+dataSetIdString = ",".join(dataSetIds)
+
+dataSetResults = d2get('dataSets.json?fields=name,organisationUnits&filter=id:in:['+dataSetIdString+']','dataSets')
+orgUnits = [organisationUnit["id"] for dataSet in dataSetResults for organisationUnit in dataSet["organisationUnits"]]
+print("Calculating predictions for " + str(len(orgUnits)) + " orgUnits.")
+
 for i in range(0, len(orgUnits), batch_size):
     orgUnitsBatched = orgUnits[i:i + batch_size]  # Slice the batch
 
-    dataValueResultMap = getDataValuesForDataElementsInOrgUnits(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,periodString,True,pastPeriods)
-
+    dataValueResultMap = getDataValuesForDataElementsInOrgUnits(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
+    print("********CHECK BELOW*******")
     print(dataValueResultMap)
+    print("********CHECK ABOVE*******")
     predictedAllFormsDataValues = []
     predictedNRDataValues= []
 
@@ -409,7 +411,7 @@ for i in range(0, len(orgUnits), batch_size):
 
     payload= {}
     payload['dataValues'] = predictedNRDataValues + predictedAllFormsDataValues
-    print('Pushing dataValues with Payload='+str(payload))
+    #print('Pushing dataValues with Payload='+str(payload))
         
     status = d2post("dataValueSets.json",payload)
     print(status)

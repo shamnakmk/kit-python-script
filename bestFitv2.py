@@ -166,25 +166,6 @@ def get_future_periods(starting_period, number):
     
     return futurePeriodsArray
 
-#create a function that accepts a inputDataElementId, periodsString, orgUnit and AttributeOption Uid
-#Returns 12 data values for that inputDataElementId
-def getDataValues(inputDataElementId,orgUnitId,periodsString):
-    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
-
-    #Sort Data Values in ascending order of quarters
-    dataValuesSorted = sorted(dataValuesResult, key=itemgetter('period'))
-
-    values=[]
-    for d in range(len(dataValuesSorted)):
-        values.append(int(dataValuesSorted[d]['value']))
-
-
-    #print("Sorted Data Values Fetched:", str(values))
-    return values
-
-def getDataValuesResult(inputDataElementId,orgUnitId,periodsString):
-    return d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
-
 def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,periodsString, fillZeroes, requiredPeriods):
     requiredPeriods.sort()
     dataElementQueryParam = ''
@@ -301,18 +282,19 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
         predictions.append(round(y))
     return predictions
 
-###################### HELPER FUNCTIONS START ################################
+###################### HELPER FUNCTIONS END ################################
 
 ###################### PREDICTION CALCULATION BEGINS #########################
 
 pastPeriods = get_previous_periods(period,numberOfPastQuarters)
 pastPeriods.sort()
-pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
 
+pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
 pastAndFuturePeriods.sort()
-periodString = ''
+
+pastPeriodString = ''
 for i in range (len(pastPeriods)):
-    periodString += '&period='+pastPeriods[i]
+    pastPeriodString += '&period='+pastPeriods[i]
 
 quarter_numbers=[]
 for q in range(1,numberOfPastQuarters+1):
@@ -334,7 +316,7 @@ batch_size = 10
 
 #Collect all orgUnits that are attached to the dataSetIds
 dataSetIdString = ",".join(dataSetIds)
-print(dataSetIdString)
+
 dataSetResults = d2get('dataSets.json?fields=name,organisationUnits&filter=id:in:['+dataSetIdString+']','dataSets')
 orgUnits = [organisationUnit["id"] for dataSet in dataSetResults for organisationUnit in dataSet["organisationUnits"]]
 print("Calculating predictions for " + str(len(orgUnits)) + " orgUnits.")
@@ -342,9 +324,10 @@ print("Calculating predictions for " + str(len(orgUnits)) + " orgUnits.")
 for i in range(0, len(orgUnits), batch_size):
     orgUnitsBatched = orgUnits[i:i + batch_size]  # Slice the batch
 
-    dataValueResultMap = getDataValuesForDataElementsInOrgUnits(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,periodString,True,pastPeriods)
-
+    dataValueResultMap = getDataValuesForDataElementsInOrgUnits(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
+    print("********CHECK BELOW*******")
     print(dataValueResultMap)
+    print("********CHECK ABOVE*******")
     predictedAllFormsDataValues = []
     predictedNRDataValues= []
 
@@ -428,7 +411,7 @@ for i in range(0, len(orgUnits), batch_size):
 
     payload= {}
     payload['dataValues'] = predictedNRDataValues + predictedAllFormsDataValues
-    print('Pushing dataValues with Payload='+str(payload))
+    #print('Pushing dataValues with Payload='+str(payload))
         
     status = d2post("dataValueSets.json",payload)
     print(status)
