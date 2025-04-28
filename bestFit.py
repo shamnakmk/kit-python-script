@@ -1,48 +1,22 @@
 import numpy as np
-import datetime
-from dateutil.relativedelta import relativedelta
-from operator import itemgetter
 import requests
 import json
-import urllib.parse
 import sys
-import statistics
-import numpy
-import traceback
 import time
-import math
 import sys
 
 
-startTime = datetime.datetime.now()
-#
-# Convert month string to a sequential number, e.g.:
-# '201912' (December 2019) -> 24239
-# '202001' (January 2020) -> 24240
-#
-def toNumber(month):
-	return int(month[:4])*12 + int(month[4:])-1
 
 #
-# Convert sequential number to a month string
-#
-def toMonth(monthNumber):
-	return str(monthNumber//12) + str(101+monthNumber%12)[1:]
-
-#
-# Find today and last month
-#
-today = datetime.date.today()
-thisMonth = today.strftime('%Y%m')
-thisMonthNumber = toNumber(thisMonth)
-#
-# load the configuration
+# Load the Config File. 
+# This script optionally accepts a argument, which will be considered as the conf file.
+# If no argument provided, default location of '/usr/local/etc/bestFit.conf' is searched.
+# If no config file available or unable to read, script will exit.
 #
 if len(sys.argv) < 2:
 	configFile = '/usr/local/etc/bestFit.conf'
 else:
     configFile = sys.argv[1]
-
 
 try:
 	configContents = open(configFile).read()
@@ -56,13 +30,14 @@ except Exception as e:
 	print('Configuration file format error: in "' + configFile + '":', e)
 	sys.exit(1)
 
+
+# Load various configs in conf file to variables.
 dhis = config['dhis']
 baseUrl = dhis['baseurl']
 api = baseUrl + '/api/'
 credentials = (dhis['username'], dhis['password'])
 inputDataElementIds = dhis['inputDataElementIds']
 outputDataElementIds = dhis['outputDataElementIds']
-period = dhis['period']
 numberOfPastQuarters = dhis['numberOfPastQuarters']
 numberOfFutureQuarters = dhis['numberOfFutureQuarters']
 defaultOption = dhis['defaultOption']
@@ -74,16 +49,15 @@ pulmonaryCDNR = dhis["pulmonaryCDNR"]
 pulmonaryCDOther = dhis["pulmonaryCDOther"]
 extraPulmonaryNR = dhis["extraPulmonaryNR"]
 extraPulmonaryOther = dhis["extraPulmonaryOther"]
+projects = dhis["projects"]
+   
 
-                    
 
-
-#Validating config
+#Validate Configs. If any validaion fails, script will exit with failure.
 
 if len(inputDataElementIds) != len(outputDataElementIds):
       print("Number of input dataElements does not match number of output data elements. Please check conf file")
-      sys.exit()
-
+      sys.exit(1)
 
 try:
 	response = requests.get(api + 'me', auth=credentials)
@@ -94,10 +68,11 @@ except Exception as e:
 	print('Cannot connect to DHIS 2 system at "' + baseUrl + '" with username "' + dhis['username'] + '":', e)
 	sys.exit(1)
 
+
 ###################### HELPER FUNCTIONS START ################################
 
 #
-# Handy function for getting data our of dhis2
+# Handy function for getting data out of dhis2 with GET API
 #
 def d2get(args, objects):
 	retry = 0 # Sometimes gets a [502] error, waiting and retrying helps
@@ -115,7 +90,7 @@ def d2get(args, objects):
 			time.sleep(2)
 
 #
-# Handy function for putting data into dhis2
+# Handy function for putting data into dhis2 with POST API
 #
 def d2post(args, data):
 	return requests.post(api + args, json=data, auth=credentials)
@@ -123,9 +98,11 @@ def d2post(args, data):
 
 #
 # Function to get previous periods in the form of 2024Q1, 2024Q2 and so on
-# starting_period : to indicate from which quarter (like 2024Q3) the count up should begin
-# number : to indicate how many previous periods has to be generated
+# starting_period : to indicate from which quarter (like 2024Q3) the count down should begin
+# number : to indicate how many previous periods has to be generated (including the starting_period)
 # returns an array that contains the required number of previous periods.
+# example, if starting_period is 2024Q2 and number is 3, then this function returns
+# ['2024Q2','2024Q1','2023Q4']
 #
 def get_previous_periods(starting_period, number):
     periodsArray = []
@@ -146,9 +123,11 @@ def get_previous_periods(starting_period, number):
 
 #
 # Function to get future periods in the form of 2024Q1, 2024Q2 and so on
-# starting_period : to indicate from which quarter (like 2024Q3) the count down should begin
-# number : to indicate how many future periods has to be generated
+# starting_period : to indicate from which quarter (like 2024Q3) the count up should begin
+# number : to indicate how many future periods has to be generated (excluding starting_period)
 # returns an array that contains the required number of future periods.
+# example, if starting_period is 2024Q2 and number is 3, then this function returns
+# ['2024Q3','2024Q4','2025Q1']
 #
 def get_future_periods(starting_period, number):
     futurePeriodsArray = []
@@ -166,12 +145,19 @@ def get_future_periods(starting_period, number):
     
     return futurePeriodsArray
 
-def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,periodsString, fillZeroes, requiredPeriods):
+
+# Function that fetches dataValues for all the specified dataElementIds,
+# for all the specified orgUnitIds, for the specified periodsString. 
+# The function can fill Zeroes (0's) as dataValue if any period is missing an dataValue by using the fillZeroes parameter.
+# requiredPeriods is an array of period strings, which is used to compare if any dataValue is missing for any of the required periods.
+# This function returns an object as below
+# 
+def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredPeriods):
     requiredPeriods.sort()
     dataElementQueryParam = ''
     orgUnitQueryParam=''
-    for i in range (len(inputDataElementIds)):
-        dataElementQueryParam += '&dataElement='+inputDataElementIds[i]
+    for i in range (len(dataElementIds)):
+        dataElementQueryParam += '&dataElement='+dataElementIds[i]
     for j in range (len(orgUnitIds)):
         orgUnitQueryParam += '&orgUnit='+orgUnitIds[j]
 
@@ -196,7 +182,6 @@ def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,period
         if dataElement not in dataValueMap[orgUnit]:
             dataValueMap[orgUnit][dataElement] = {
                 "periodValues": {},  # Period-value mapping
-                "stringDataValues": [],
                 "dataValues": []  # Values ordered by requiredPeriods
             }
 
@@ -216,11 +201,6 @@ def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,period
                     if requiredPeriod not in periodValues:
                         periodValues[requiredPeriod] = "0"
 
-            # Add the dataValues array ordered by requiredPeriods
-            dataElementData["stringDataValues"] = [
-                periodValues.get(period, "0") for period in requiredPeriods
-            ]
-
             # Code to fill dataValues
             dataElementData["dataValues"] = [
                     int(periodValues.get(period)) if periodValues.get(period) is not None and periodValues.get(period).isdigit() else None
@@ -228,48 +208,21 @@ def getDataValuesForDataElementsInOrgUnits(inputDataElementIds,orgUnitIds,period
             ]
             
             # Remove None values (if needed)
-            dataElementData["dataValues"] = [value for value in dataElementData["dataValues"] if value is not None]
+           # dataElementData["dataValues"] = [value for value in dataElementData["dataValues"] if value is not None]
 
     return dataValueMap
 
 
-def sortAndNumerifyDataValues(dataValuesResult):
-    #Sort Data Values in ascending order of quarters
-    # Sort based on the 'age' key
-    dataValuesSorted = sorted(dataValuesResult, key=itemgetter('period'))
-
-    values=[]
-    for d in range(len(dataValuesSorted)):
-        if dataValuesSorted[d]['value'] is not None and str(dataValuesSorted[d]['value']).isdigit():
-            values.append(int(dataValuesSorted[d]['value']))
-        else:
-            print('Got a non numeric data value=',dataValuesSorted[d]['value'])
-
-    #print("Sorted Data Values Fetched:", str(values))
-    return values
-
-def getDataValuesWithZeroes(inputDataElementId,orgUnitId,periodsString):
-    #print("Fetching data values for data element:"+inputDataElementId)
-    dataValuesResult = d2get('dataValueSets.json?dataElement='+inputDataElementId+periodsString+'&orgUnit='+orgUnitId+"&attributeOptionCombo="+defaultOption,'dataValues')
-    periodDataValues= {}
-    for s in range (len(dataValuesResult)):
-         periodDataValues[dataValuesResult[s]["period"]] = int(dataValuesResult[s]["value"])
-
-
-    values=[]
-
-    for p in range(len(pastPeriods)):
-        period = pastPeriods[p]
-        if period in periodDataValues:
-             values.append(periodDataValues[period])
-        else:
-             values.append(0)
-             
-         
-    #print("Sorted Data Values Fetched:", str(values))
-    return values
-
-
+# This function calulates predictions based on the input provided.
+# xValues is an array of numbers that represent the x coordinate values in the chart for best fit line
+# xValues in this case is simply the values from 1 to 12 (depending on number of baseline quarters)
+# yValues is an array of numbers that represent the corresponding y coordinate value
+# yValues in our case is the dataValues corresponding to the baseline period number
+# numberOfPredictions is the number of future predictions required in the best fit line.
+# Example: if xValues : [1,2,3,4,5,6]
+#         and yValues : [8,22,28,42,48,62]
+#         and numberOfPredictions: 8
+# then this function returns the full predictions as [10, 20, 30, 40, 50, 60, 71, 81] (Best fit line)
 def calculatePredictions(xValues,yValues,numberOfPredictions):
     x = np.array(xValues)
     y = np.array(yValues)
@@ -285,16 +238,6 @@ def calculatePredictions(xValues,yValues,numberOfPredictions):
 ###################### HELPER FUNCTIONS END ################################
 
 ###################### PREDICTION CALCULATION BEGINS #########################
-
-pastPeriods = get_previous_periods(period,numberOfPastQuarters)
-pastPeriods.sort()
-
-pastAndFuturePeriods = pastPeriods + get_future_periods(period,numberOfFutureQuarters)
-pastAndFuturePeriods.sort()
-
-pastPeriodString = ''
-for i in range (len(pastPeriods)):
-    pastPeriodString += '&period='+pastPeriods[i]
 
 quarter_numbers=[]
 for q in range(1,numberOfPastQuarters+1):
@@ -318,105 +261,127 @@ batch_size = 10
 dataSetIdString = ",".join(dataSetIds)
 
 dataSetResults = d2get('dataSets.json?fields=name,organisationUnits&filter=id:in:['+dataSetIdString+']','dataSets')
-orgUnits = [organisationUnit["id"] for dataSet in dataSetResults for organisationUnit in dataSet["organisationUnits"]]
-print("Calculating predictions for " + str(len(orgUnits)) + " orgUnits.")
+dataSetOrgUnits = [organisationUnit["id"] for dataSet in dataSetResults for organisationUnit in dataSet["organisationUnits"]]
+dataSetOrgUnits_set = set(dataSetOrgUnits)
 
-for i in range(0, len(orgUnits), batch_size):
-    orgUnitsBatched = orgUnits[i:i + batch_size]  # Slice the batch
+#Iterating over each project defined in config and calculating predictions one project at a time.
+for p in range(0,len(projects)):
 
-    dataValueResultMap = getDataValuesForDataElementsInOrgUnits(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
-    print("********CHECK BELOW*******")
-    print(dataValueResultMap)
-    print("********CHECK ABOVE*******")
-    predictedAllFormsDataValues = []
-    predictedNRDataValues= []
+    #If baselineEndQuarter not specified in conf for this project, then skip this project and continue to next in loop
+    if (projects[p]['baselineEndQuarter'] == ''):
+        print('Skipping project: ' + projects[p]['projectName'] + ' due to missing baselineEndQuarter')
+        continue
 
-    for p in range (len(orgUnitsBatched)):
-        orgUnit = orgUnitsBatched[p]
-        #print("fetched orgUnit is " + orgUnit)
-        if dataValueResultMap.get(orgUnit) is None:
-            skippedOrgUnits = skippedOrgUnits+1
-            continue
+    pastPeriods = get_previous_periods(projects[p]['baselineEndQuarter'],numberOfPastQuarters)
+    pastPeriods.sort()
 
-        for i in range(len(inputDataElementIds)):
-        
-            inputDataElement = inputDataElementIds[i]
-            outputDataElement = outputDataElementIds[i]
-        
-            if dataValueResultMap[orgUnit].get(inputDataElement) is None:
+    pastAndFuturePeriods = pastPeriods + get_future_periods(projects[p]['baselineEndQuarter'],numberOfFutureQuarters)
+    pastAndFuturePeriods.sort()
+
+    pastPeriodString = ''
+    for i in range (len(pastPeriods)):
+        pastPeriodString += '&period='+pastPeriods[i]
+
+    print("Fetching orgUnits under project: " + projects[p]['projectName'])
+    porgs = d2get('organisationUnits.json?fields=id&filter=path:like:'+projects[p]['projectOrgUnitId']+'&paging=false','organisationUnits')
+    
+    # Add child orgUnitIds of project that are also attached to the dataSet
+    orgUnits = [porg["id"] for porg in porgs if porg["id"] in dataSetOrgUnits_set ]
+
+    print("Calculating predictions for " + str(len(orgUnits)) + " orgUnits that are attached to DataSet in project: " + projects[p]['projectName'])
+
+    for o in range(0, len(orgUnits), batch_size):
+        orgUnitsBatched = orgUnits[o:o + batch_size]  # Slice the batch
+
+        dataValueResultMap = getDataValues(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
+        print(dataValueResultMap)
+        predictedAllFormsDataValues = []
+        predictedNRDataValues= []
+
+        for b in range (len(orgUnitsBatched)):
+            orgUnit = orgUnitsBatched[b]
+           
+            if dataValueResultMap.get(orgUnit) is None:
                 skippedOrgUnits = skippedOrgUnits+1
                 continue
 
-            dataValuesForDE = dataValueResultMap[orgUnit][inputDataElement]["dataValues"]
+            for d in range(len(inputDataElementIds)):
+        
+                inputDataElement = inputDataElementIds[d]
+                outputDataElement = outputDataElementIds[d]
+        
+                if dataValueResultMap[orgUnit].get(inputDataElement) is None:
+                    skippedOrgUnits = skippedOrgUnits+1
+                    continue
 
-            if len(dataValuesForDE)!=numberOfPastQuarters:
-                print("Past dataValues of " +str(inputDataElement)+ " is not matching the number of past periods")
-                skippedNRPredictions.append(orgUnit+"-"+str(inputDataElement))
-                continue
+                dataValuesForDE = dataValueResultMap[orgUnit][inputDataElement]["dataValues"]
 
-            predictions = calculatePredictions(quarter_numbers,dataValuesForDE,numberOfPastQuarters+numberOfFutureQuarters)
-            pushedNRPredictions.append(orgUnit+"-"+outputDataElement)
-            print(inputDataElement)
-            print(outputDataElement)
-            print(dataValuesForDE)
-            print(predictions)
-            for o in range(len(pastAndFuturePeriods)):
-                dataValue = { "categoryOptionCombo": defaultOption,
-                "attributeOptionCombo": defaultOption,
-                "dataElement":outputDataElement,
-                "period":pastAndFuturePeriods[o],
-                "orgUnit": orgUnit,
-                "value": str(predictions[o])
-                }
+                if len(dataValuesForDE)!=numberOfPastQuarters:
+                    print("Past dataValues of " +str(inputDataElement)+ " is not matching the number of past periods")
+                    skippedNRPredictions.append(orgUnit+"-"+str(inputDataElement))
+                    continue
+
+                predictions = calculatePredictions(quarter_numbers,dataValuesForDE,numberOfPastQuarters+numberOfFutureQuarters)
+                pushedNRPredictions.append(orgUnit+"-"+outputDataElement)
+                print(dataValuesForDE)
+                print(predictions)
+                for o in range(len(pastAndFuturePeriods)):
+                    dataValue = { "categoryOptionCombo": defaultOption,
+                    "attributeOptionCombo": defaultOption,
+                    "dataElement":outputDataElement,
+                    "period":pastAndFuturePeriods[o],
+                    "orgUnit": orgUnit,
+                    "value": str(predictions[o])
+                    }
     
-                predictedNRDataValues.append(dataValue)
+                    predictedNRDataValues.append(dataValue)
 
         
-        if dataValueResultMap[orgUnit].get(pulmonaryBNR) is None or dataValueResultMap[orgUnit].get(pulmonaryBOther) is None or dataValueResultMap[orgUnit].get(pulmonaryCDNR) is None or dataValueResultMap[orgUnit].get(pulmonaryCDOther) is None or dataValueResultMap[orgUnit].get(extraPulmonaryNR) is None or dataValueResultMap[orgUnit].get(extraPulmonaryOther) is None:
-            print("Datavalue missing for one of allForms calculation. Skipping all forms prediction for orgUnit:"+orgUnit)
-            skippedAllFormsPredictions.append(orgUnit)
-            continue
+            if dataValueResultMap[orgUnit].get(pulmonaryBNR) is None or dataValueResultMap[orgUnit].get(pulmonaryBOther) is None or dataValueResultMap[orgUnit].get(pulmonaryCDNR) is None or dataValueResultMap[orgUnit].get(pulmonaryCDOther) is None or dataValueResultMap[orgUnit].get(extraPulmonaryNR) is None or dataValueResultMap[orgUnit].get(extraPulmonaryOther) is None:
+                print("Datavalue missing for one of allForms calculation. Skipping all forms prediction for orgUnit:"+orgUnit)
+                skippedAllFormsPredictions.append(orgUnit)
+                continue
         
-        pulmonaryBNRDataValues = dataValueResultMap[orgUnit][pulmonaryBNR]["dataValues"]
-        pulmonaryBOtherDataValues = dataValueResultMap[orgUnit][pulmonaryBOther]["dataValues"]
-        pulmonaryCDNRDataValues  = dataValueResultMap[orgUnit][pulmonaryCDNR]["dataValues"]
-        pulmonaryCDOtherDataValues = dataValueResultMap[orgUnit][pulmonaryCDOther]["dataValues"]
-        extraPulmonaryNRDataValues = dataValueResultMap[orgUnit][extraPulmonaryNR]["dataValues"]
-        extraPulmonaryOtherDataValues = dataValueResultMap[orgUnit][extraPulmonaryOther]["dataValues"]
-        if len(pulmonaryBNRDataValues)!= numberOfPastQuarters or len(pulmonaryBOtherDataValues)!= numberOfPastQuarters or len(pulmonaryCDNRDataValues)!= numberOfPastQuarters or len(pulmonaryCDOtherDataValues)!= numberOfPastQuarters or len(extraPulmonaryNRDataValues)!= numberOfPastQuarters or len(extraPulmonaryOtherDataValues)!= numberOfPastQuarters :
-            print("Number of dataValues is not equals number of pastPeriods. Skipping all forms prediction for orgUnit:"+orgUnit)
-            skippedAllFormsPredictions.append(orgUnit)
-            continue
+            pulmonaryBNRDataValues = dataValueResultMap[orgUnit][pulmonaryBNR]["dataValues"]
+            pulmonaryBOtherDataValues = dataValueResultMap[orgUnit][pulmonaryBOther]["dataValues"]
+            pulmonaryCDNRDataValues  = dataValueResultMap[orgUnit][pulmonaryCDNR]["dataValues"]
+            pulmonaryCDOtherDataValues = dataValueResultMap[orgUnit][pulmonaryCDOther]["dataValues"]
+            extraPulmonaryNRDataValues = dataValueResultMap[orgUnit][extraPulmonaryNR]["dataValues"]
+            extraPulmonaryOtherDataValues = dataValueResultMap[orgUnit][extraPulmonaryOther]["dataValues"]
+            if len(pulmonaryBNRDataValues)!= numberOfPastQuarters or len(pulmonaryBOtherDataValues)!= numberOfPastQuarters or len(pulmonaryCDNRDataValues)!= numberOfPastQuarters or len(pulmonaryCDOtherDataValues)!= numberOfPastQuarters or len(extraPulmonaryNRDataValues)!= numberOfPastQuarters or len(extraPulmonaryOtherDataValues)!= numberOfPastQuarters :
+                print("Number of dataValues is not equals number of pastPeriods. Skipping all forms prediction for orgUnit:"+orgUnit)
+                skippedAllFormsPredictions.append(orgUnit)
+                continue
         
 
-        allFormsTotal = []
-        for l in range(len(pulmonaryBNRDataValues)):
-            allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
+            allFormsTotal = []
+            for l in range(len(pulmonaryBNRDataValues)):
+                allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
         
-        predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
-        print("All Forms values", allFormsTotal)
-        print("AllForms Predictions:"+str(predictions))
+            predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
+            print("All Forms values", allFormsTotal)
+            print("AllForms Predictions:"+str(predictions))
 
-        for m in range(len(pastAndFuturePeriods)):
-            dataValue = { "categoryOptionCombo": defaultOption,
-                "attributeOptionCombo": defaultOption,
-                "dataElement":allFormsOutputDataElementId,
-                "period":pastAndFuturePeriods[m],
-                "orgUnit": orgUnit,
-                "value": str(predictions[m])
-            }
-            predictedAllFormsDataValues.append(dataValue)
+            for m in range(len(pastAndFuturePeriods)):
+                dataValue = { "categoryOptionCombo": defaultOption,
+                    "attributeOptionCombo": defaultOption,
+                    "dataElement":allFormsOutputDataElementId,
+                    "period":pastAndFuturePeriods[m],
+                    "orgUnit": orgUnit,
+                    "value": str(predictions[m])
+                }
+                predictedAllFormsDataValues.append(dataValue)
 
-        pushedAllFormsPredictions.append(orgUnit)
+            pushedAllFormsPredictions.append(orgUnit)
 
-    payload= {}
-    payload['dataValues'] = predictedNRDataValues + predictedAllFormsDataValues
-    #print('Pushing dataValues with Payload='+str(payload))
+        payload= {}
+        payload['dataValues'] = predictedNRDataValues + predictedAllFormsDataValues
+        #print('Pushing dataValues with Payload='+str(payload))
         
-    status = d2post("dataValueSets.json",payload)
-    print(status)
-    coveredOrgUnits = coveredOrgUnits+len(orgUnitsBatched);
-    print("Completed no. of orgunits="+str(coveredOrgUnits))
+        status = d2post("dataValueSets.json",payload)
+        print(status)
+        coveredOrgUnits = coveredOrgUnits+len(orgUnitsBatched);
+        print("Completed no. of orgunits="+str(coveredOrgUnits))
 
 
 
