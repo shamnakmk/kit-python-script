@@ -40,6 +40,8 @@ credentials = (dhis['username'], dhis['password'])
 inputDataElementIds = dhis['inputDataElementIds']
 outputDataElementIds = dhis['outputDataElementIds']
 percentageDiffOutputDataElementIds = dhis['percentageDiffOutputDataElementIds']
+unadjustedCumulativeBaselineOutputDataElementIds= dhis['unadjustedCumulativeBaselineOutputDataElementIds']
+unadjustedCumulativeBaselineAllFormsOutputDataElementId= dhis['unadjustedCumulativeBaselineAllFormsOutputDataElementId']
 defaultOption = dhis['defaultOption']
 dataSetIds = dhis['dataSetIds']
 allFormsOutputDataElementId = dhis["allFormsOutputDataElementId"]
@@ -300,34 +302,31 @@ def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredP
 
 def calculateUnadjustedAdditionality(dataValues,implementationPeriods):
     unadjustedAdditionalityValues = []
-    unadjustedAdditionalityDiffFromBaselineValues = []
+    unadjustedAdditionalityCumulativeBaselineValues = []
 
     baseline_len = len(dataValues) - len(implementationPeriods)
     implementation_start_index = baseline_len
 
     for i in range(len(implementationPeriods)):
         implementation_period_number = i + 1
-
-        baseline_sum = sum(dataValues[0 : implementation_period_number])
+        
         implementation_sum = sum(dataValues[implementation_start_index : implementation_start_index + implementation_period_number])
 
         if implementation_period_number > baseline_len:
             adjustment_factor = implementation_period_number / baseline_len
+            baseline_sum = sum(dataValues[0 : 4])
         else:
             adjustment_factor = 1.0
+            baseline_sum = sum(dataValues[0 : implementation_period_number])
 
         adjusted_baseline = baseline_sum * adjustment_factor
         additionality = implementation_sum - adjusted_baseline
 
-        if (adjusted_baseline == 0):
-             additionalityDiffFromBaseline = None
-        else:
-             additionalityDiffFromBaseline = (additionality/adjusted_baseline)*100
 
         unadjustedAdditionalityValues.append(additionality)
-        unadjustedAdditionalityDiffFromBaselineValues.append(additionalityDiffFromBaseline)
+        unadjustedAdditionalityCumulativeBaselineValues.append(adjusted_baseline)
 
-    return unadjustedAdditionalityValues, unadjustedAdditionalityDiffFromBaselineValues
+    return unadjustedAdditionalityValues, unadjustedAdditionalityCumulativeBaselineValues
 
 ###################### HELPER FUNCTIONS END ################################
 
@@ -399,9 +398,9 @@ for p in range(0,len(projects)):
 
         dataValueResultMap = getDataValues(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
         unadjustedAllFormsDataValues = []
-        unadjustedAllFormsDiffFromBaslineDataValues = []
+        unadjustedAllFormsCumulativeBaselineDataValues = []
         unadjustedNRDataValues= []
-        unadjustedNRDiffFromBaselineDataValues= []
+        unadjustedNRCumulativeBaselineDataValues = []
 
         for b in range (len(orgUnitsBatched)):
             orgUnit = orgUnitsBatched[b]
@@ -415,6 +414,7 @@ for p in range(0,len(projects)):
                 inputDataElement = inputDataElementIds[d]
                 outputDataElement = outputDataElementIds[d]
                 percentageDiffOutputDataElement = percentageDiffOutputDataElementIds[d]
+                cumulativeBaselineOutputDataElement = unadjustedCumulativeBaselineOutputDataElementIds[d]
         
                 if dataValueResultMap[orgUnit].get(inputDataElement) is None:
                     skippedOrgUnits = skippedOrgUnits+1
@@ -427,11 +427,9 @@ for p in range(0,len(projects)):
                     skippedUnadjustedNR.append(orgUnit+"-"+str(inputDataElement))
                     continue
 
-                unadjustedAdditionalities, unadjustedAdditionalityDiffsFromBaseline = calculateUnadjustedAdditionality(dataValuesForDE,implementationPeriods)
+                unadjustedAdditionalities, unadjustedAdditionalityCumulativeBaselineValues = calculateUnadjustedAdditionality(dataValuesForDE,implementationPeriods)
                 pushedUnadjustedNR.append(orgUnit+"-"+outputDataElement)
-                print(dataValuesForDE)
-                print(unadjustedAdditionalities)
-                print(unadjustedAdditionalityDiffsFromBaseline)
+               
                 for o in range(len(implementationPeriods)):
                     dataValue = { "categoryOptionCombo": defaultOption,
                     "attributeOptionCombo": defaultOption,
@@ -443,16 +441,16 @@ for p in range(0,len(projects)):
     
                     unadjustedNRDataValues.append(dataValue)
 
-                    if (unadjustedAdditionalityDiffsFromBaseline[o] is not None):
-                        diffDataValue = { "categoryOptionCombo": defaultOption,
+                    if (unadjustedAdditionalityCumulativeBaselineValues[o] is not None):
+                        cumulativeBaselineDataValue = { "categoryOptionCombo": defaultOption,
                         "attributeOptionCombo": defaultOption,
-                        "dataElement":percentageDiffOutputDataElement,
+                        "dataElement":cumulativeBaselineOutputDataElement,
                         "period":implementationPeriods[o],
                         "orgUnit": orgUnit,
-                        "value": str(unadjustedAdditionalityDiffsFromBaseline[o])
+                        "value": str(unadjustedAdditionalityCumulativeBaselineValues[o])
                         }
 
-                        unadjustedNRDiffFromBaselineDataValues.append(diffDataValue)
+                        unadjustedAllFormsCumulativeBaselineDataValues.append(cumulativeBaselineDataValue)
 
         
             if dataValueResultMap[orgUnit].get(pulmonaryBNR) is None or dataValueResultMap[orgUnit].get(pulmonaryBOther) is None or dataValueResultMap[orgUnit].get(pulmonaryCDNR) is None or dataValueResultMap[orgUnit].get(pulmonaryCDOther) is None or dataValueResultMap[orgUnit].get(extraPulmonaryNR) is None or dataValueResultMap[orgUnit].get(extraPulmonaryOther) is None:
@@ -476,11 +474,8 @@ for p in range(0,len(projects)):
             for l in range(len(pulmonaryBNRDataValues)):
                 allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
         
-            unadjustedAdditionalities, unadjustedAdditionalityDiffsFromBaseline = calculateUnadjustedAdditionality(allFormsTotal,implementationPeriods)
-            print("All Forms values", allFormsTotal)
-            print("AllForms UnadjustedAdditionality:"+str(unadjustedAdditionalities))
-            print("AllForms UnadjustedAdditionality Diff:"+str(unadjustedAdditionalityDiffsFromBaseline))
-
+            unadjustedAdditionalities, unadjustedAdditionalityCumulativeBaselineValues  = calculateUnadjustedAdditionality(allFormsTotal,implementationPeriods)
+         
             for m in range(len(implementationPeriods)):
                 dataValue = { "categoryOptionCombo": defaultOption,
                     "attributeOptionCombo": defaultOption,
@@ -491,22 +486,22 @@ for p in range(0,len(projects)):
                 }
                 unadjustedAllFormsDataValues.append(dataValue)
 
-                if (unadjustedAdditionalityDiffsFromBaseline[o] is not None):
-                     
-                    diffDataValue = { "categoryOptionCombo": defaultOption,
+                if (unadjustedAdditionalityCumulativeBaselineValues[o] is not None):
+                    
+                    cumulativeBaselineDataValue = { "categoryOptionCombo": defaultOption,
                         "attributeOptionCombo": defaultOption,
-                        "dataElement":allFormsPercentageDiffOutputDataElementId,
+                        "dataElement":unadjustedCumulativeBaselineAllFormsOutputDataElementId,
                         "period":implementationPeriods[o],
                         "orgUnit": orgUnit,
-                        "value": str(unadjustedAdditionalityDiffsFromBaseline[o])
+                        "value": str(unadjustedAdditionalityCumulativeBaselineValues[o])
                         }
 
-                    unadjustedAllFormsDiffFromBaslineDataValues.append(diffDataValue)
+                    unadjustedAllFormsCumulativeBaselineDataValues.append(cumulativeBaselineDataValue)
 
             pushedUnadjustedAllForms.append(orgUnit)
 
         payload= {}
-        payload['dataValues'] = unadjustedNRDataValues + unadjustedAllFormsDataValues + unadjustedAllFormsDiffFromBaslineDataValues + unadjustedNRDiffFromBaselineDataValues
+        payload['dataValues'] = unadjustedNRDataValues + unadjustedAllFormsDataValues + unadjustedAllFormsCumulativeBaselineDataValues + unadjustedNRCumulativeBaselineDataValues
         print('Pushing dataValues with Payload='+str(payload))
         
         status = d2post("dataValueSets.json",payload)
