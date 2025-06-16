@@ -1,0 +1,1092 @@
+<style type="text/css">
+  .section {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 50px;
+    padding-bottom: 50px;
+    width: 930px;
+    font-size: 15px;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .links {
+    font-size: 15px;
+    margin-left: 30px;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f4f6f8;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #42a5f5;
+    font-family: 'Helvetica', 'Arial', sans-serif;
+  }
+
+  .textarea {
+    width: 100%;
+    padding: 12px 20px;
+    height: 150px;
+    font-size: 14px;
+    box-sizing: border-box;
+    border: 1px solid #000000;
+    border-radius: 5px;
+    resize: none;
+  }
+
+  .dhis2-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: white;
+  }
+
+  .dhis2-table th,
+  .dhis2-table td {
+    border: 1px solid #d5dce0;
+    padding: 10px;
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .dhis2-table th {
+    background-color: #003764;
+    color: white;
+    text-transform: uppercase;
+  }
+
+  .dhis2-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+
+  .dhis2-table tr:nth-child(odd) {
+    background-color: #ffffff;
+  }
+
+  .dhis2-table tr:hover {
+    background-color: #d5e8ff;
+  }
+
+  .dhis2-table td {
+    vertical-align: middle;
+  }
+
+  .dhis2-table input {
+    width: 90%;
+    padding: 5px;
+    border: 1px solid #c3cfd9;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .dhis2-table input:focus {
+    outline: none;
+    border-color: #0069b4;
+    box-shadow: 0 0 5px rgba(0, 105, 180, 0.5);
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+
+<script type="text/javascript">
+  $(document).ready(function () {
+    var currentDate = new Date();
+
+    var granteeNameDEId = "jxKT6uV2xQ2";
+    var projectNameDEId = "BVxBuLFz5zN";
+    var countryDEId = "U1iK9RWKyDd";
+    var projectCodeDEId = "fts9dZqImf3";
+    var projectInformationDEid = "PgfQeLqTNp7"
+
+
+
+    var projectInformationUrl = "../api/analytics?dimension=pe:2024;2025,dx:PgfQeLqTNp7.U1iK9RWKyDd;PgfQeLqTNp7.jxKT6uV2xQ2;PgfQeLqTNp7.BVxBuLFz5zN;PgfQeLqTNp7.fts9dZqImf3&filter=ou:" + dhis2.report.organisationUnit.id + "&displayProperty=NAME&includeNumDen=true&skipMeta=true&skipData=false";
+
+
+    function fetchProjectInformation(url) {
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+
+          const dateOfDownload = document.getElementById('DateOfDownload');
+          dateOfDownload.textContent = new Date().toString();
+
+          var tableDomMap = {
+            "PgfQeLqTNp7.U1iK9RWKyDd": document.getElementById('Country'),
+            "PgfQeLqTNp7.jxKT6uV2xQ2": document.getElementById('GranteeName'),
+            "PgfQeLqTNp7.BVxBuLFz5zN": document.getElementById('ProjectName'),
+            "PgfQeLqTNp7.fts9dZqImf3": document.getElementById('ProjectCode'),
+          };
+
+          data.rows.forEach(row => {
+
+            const dimension = row[0];
+            const value = row[2];
+            // Check if the quarter and code are valid in the tableDomMap
+            if (tableDomMap[dimension]) {
+              // Update the corresponding table cell
+              tableDomMap[dimension].textContent = value;
+            }
+          });
+
+        })
+        .catch(error => console.error("Error fetching project information: ", error));
+    }
+
+    // Example of calling the function with a specific orgUnitId
+    fetchProjectInformation(projectInformationUrl);
+
+
+    var additionalityTargetsUrl = "../api/analytics?dimension=dx:ygO1Z0oHlhB;MZOdlEKjjUi,pe:2025Q1;2025Q2;2025Q3;2025Q4&filter=ou:" + dhis2.report.organisationUnit.id + "&displayProperty=NAME&includeNumDen=true&skipMeta=false&skipData=false";
+
+    function fetchAdditionalityTargets(url) {
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          var tableDomMap = {
+            "2025Q1": {
+              "ygO1Z0oHlhB": document.getElementById('data11'),
+              "MZOdlEKjjUi": document.getElementById('data12')
+            },
+            "2025Q2": {
+              "ygO1Z0oHlhB": document.getElementById('data21'),
+              "MZOdlEKjjUi": document.getElementById('data22')
+            },
+            "2025Q3": {
+              "ygO1Z0oHlhB": document.getElementById('data31'),
+              "MZOdlEKjjUi": document.getElementById('data32')
+            },
+            "2025Q4": {
+              "ygO1Z0oHlhB": document.getElementById('data41'),
+              "MZOdlEKjjUi": document.getElementById('data42')
+            },
+          };
+
+          data.rows.forEach(row => {
+            const quarter = row[1];
+            const dimension = row[0];
+            const value = row[2];
+            // Check if the quarter and code are valid in the tableDomMap
+            if (tableDomMap[quarter] && tableDomMap[quarter][dimension]) {
+              // Update the corresponding table cell
+              tableDomMap[quarter][dimension].textContent = value;
+            }
+          });
+
+        })
+        .catch(error => console.error("Error fetching project information: ", error));
+    }
+
+    fetchAdditionalityTargets(additionalityTargetsUrl);
+
+    femaleCocId = "Y9CYNluAZfg";
+    maleCoCId = "xYwLEVcXYYX";
+
+    var tbPiTargetsUrl = "../api/41/dataValueSets.json?attributeOptionCombo=LQjOnOf4AzJ&dataSet=YJ60PG4lfoU&period=2025&orgUnit=" + dhis2.report.organisationUnit.id + "&attributeOptionCombo=Rcywa4V1i7Z";
+
+    function fetchTBProcessIndicatorTargets(url) {
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          var tbPiAnnualTargetTableDomMap = {
+            "jRMvzyD4Ubu": {
+              "xYwLEVcXYYX": document.getElementById('aftb-successfullytreated-male'),
+              "Y9CYNluAZfg": document.getElementById('aftb-successfullytreated-female'),
+              "total": document.getElementById('aftb-successfullytreated-total'),
+              "femalePercentage": document.getElementById('aftb-successfullytreated-female-percentage'),
+            },
+            "ej61pTdogQJ": {
+              "xYwLEVcXYYX": document.getElementById('aftb-diagnosed-male'),
+              "Y9CYNluAZfg": document.getElementById('aftb-diagnosed-female'),
+              "total": document.getElementById('aftb-diagnosed-total'),
+              "femalePercentage": document.getElementById('aftb-diagnosed-female-percentage'),
+            },
+            "ogiA4hkEFOP": {
+              "xYwLEVcXYYX": document.getElementById('tested-male'),
+              "Y9CYNluAZfg": document.getElementById('tested-female'),
+              "total": document.getElementById('tested-total'),
+              "femalePercentage": document.getElementById('tested-female-percentage'),
+            },
+            "p3o7bokIYCg": {
+              "xYwLEVcXYYX": document.getElementById('bplustb-diagnosed-male'),
+              "Y9CYNluAZfg": document.getElementById('bplustb-diagnosed-female'),
+              "total": document.getElementById('bplustb-diagnosed-total'),
+              "femalePercentage": document.getElementById('bplustb-diagnosed-female-percentage'),
+            },
+            "w6s6b0oGCYl": {
+              "xYwLEVcXYYX": document.getElementById('presumptive-male'),
+              "Y9CYNluAZfg": document.getElementById('presumptive-female'),
+              "total": document.getElementById('presumptive-total'),
+              "femalePercentage": document.getElementById('presumptive-female-percentage'),
+            },
+            "BDTjifNhpVS": {
+              "xYwLEVcXYYX": document.getElementById('screened-male'),
+              "Y9CYNluAZfg": document.getElementById('screened-female'),
+              "total": document.getElementById('screened-total'),
+              "femalePercentage": document.getElementById('screened-female-percentage'),
+            },
+            "xuubpG6Xtaz": {
+              "xYwLEVcXYYX": document.getElementById('bplustb-startedtreatment-male'),
+              "Y9CYNluAZfg": document.getElementById('bplustb-startedtreatment-female'),
+              "total": document.getElementById('bplustb-startedtreatment-total'),
+              "femalePercentage": document.getElementById('bplustb-startedtreatment-female-percentage'),
+            },
+            "mjtuGNzTNzD": {
+              "xYwLEVcXYYX": document.getElementById('bplustb-successfullytreated-male'),
+              "Y9CYNluAZfg": document.getElementById('bplustb-successfullytreated-female'),
+              "total": document.getElementById('bplustb-successfullytreated-total'),
+              "femalePercentage": document.getElementById('bplustb-successfullytreated-female-percentage'),
+            },
+            "ipCSd2E4gOw": {
+              "xYwLEVcXYYX": document.getElementById('aftb-startedtreatment-male'),
+              "Y9CYNluAZfg": document.getElementById('aftb-startedtreatment-female'),
+              "total": document.getElementById('aftb-startedtreatment-total'),
+              "femalePercentage": document.getElementById('aftb-startedtreatment-female-percentage'),
+            },
+          };
+          var tbPiAnnualTargetValueMap = {
+            "jRMvzyD4Ubu": {
+
+            },
+            "ej61pTdogQJ": {
+
+            },
+            "ogiA4hkEFOP": {
+
+            },
+            "p3o7bokIYCg": {
+
+            },
+            "w6s6b0oGCYl": {
+
+            },
+            "BDTjifNhpVS": {
+
+            },
+            "xuubpG6Xtaz": {
+
+            },
+            "mjtuGNzTNzD": {
+
+            },
+            "ipCSd2E4gOw": {
+
+            },
+
+          };
+
+          var tbPiRatioIndicatorTableDomMap = {
+            "presumptiveByScreened" : {
+              "male" : document.getElementById('presumptiveByScreened-male'),
+              "female" : document.getElementById('presumptiveByScreened-female'),
+              "total" : document.getElementById('presumptiveByScreened-total')
+            },
+            "testedByPresumptive" : {
+              "male" : document.getElementById('testedByPresumptive-male'),
+              "female" : document.getElementById('testedByPresumptive-female'),
+              "total" : document.getElementById('testedByPresumptive-total')
+            },
+            "bplusByTested" : {
+              "male" : document.getElementById('bplusByTested-male'),
+              "female" : document.getElementById('bplusByTested-female'),
+              "total" : document.getElementById('bplusByTested-total')
+            },
+            "bplusByScreened" : {
+              "male" : document.getElementById('bplusByScreened-male'),
+              "female" : document.getElementById('bplusByScreened-female'),
+              "total" : document.getElementById('bplusByScreened-total')
+            },
+            "treatedByBplus" : {
+              "male" : document.getElementById('treatedByBplus-male'),
+              "female" : document.getElementById('treatedByBplus-female'),
+              "total" : document.getElementById('treatedByBplus-total')
+            },
+            "treatedByAfDiagnosed" : {
+              "male" : document.getElementById('treatedByAfDiagnosed-male'),
+              "female" : document.getElementById('treatedByAfDiagnosed-female'),
+              "total" : document.getElementById('treatedByAfDiagnosed-total')
+            },
+            "bplusTreatmentSuccessRate" : {
+              "male" : document.getElementById('bplusTreatmentSuccessRate-male'),
+              "female" : document.getElementById('bplusTreatmentSuccessRate-female'),
+              "total" : document.getElementById('bplusTreatmentSuccessRate-total')
+            },
+            "afTreatmentSuccessRate" : {
+              "male" : document.getElementById('afTreatmentSuccessRate-male'),
+              "female" : document.getElementById('afTreatmentSuccessRate-female'),
+              "total" : document.getElementById('afTreatmentSuccessRate-total')
+            },
+            "nnsPresumptive" : {
+              "male" : document.getElementById('nnsPresumptive-male'),
+              "female" : document.getElementById('nnsPresumptive-female'),
+              "total" : document.getElementById('nnsPresumptive-total')
+            },
+            "nntBplusDiagnosed" : {
+              "male" : document.getElementById('nntBplusDiagnosed-male'),
+              "female" : document.getElementById('nntBplusDiagnosed-female'),
+              "total" : document.getElementById('nntBplusDiagnosed-total')
+            },
+            "nnsAfTreated" : {
+              "male" : document.getElementById('nnsAfTreated-male'),
+              "female" : document.getElementById('nnsAfTreated-female'),
+              "total" : document.getElementById('nnsAfTreated-total')
+            },
+          }
+
+          data.dataValues.forEach(dataValue => {
+            
+            // Check if the quarter and code are valid in the tableDomMap
+            if (tbPiAnnualTargetTableDomMap[dataValue.dataElement] && tbPiAnnualTargetTableDomMap[dataValue.dataElement][dataValue.categoryOptionCombo]) {
+              // Update the corresponding table cell
+              tbPiAnnualTargetTableDomMap[dataValue.dataElement][dataValue.categoryOptionCombo].textContent = dataValue.value;
+              const intValue = parseInt(dataValue.value, 10);
+              if (!isNaN(intValue)) {
+                tbPiAnnualTargetValueMap[dataValue.dataElement][dataValue.categoryOptionCombo] = intValue;
+              } else {
+                console.error(`Invalid integer value: ${dataValue.value}`);
+              }
+            }
+          });
+
+          // Iterate over the outer object's keys
+          Object.keys(tbPiAnnualTargetValueMap).forEach(key => {
+            let tbPiAnnualTargetValueObject = tbPiAnnualTargetValueMap[key];
+
+            // Calculate total and female percentage
+            let total = tbPiAnnualTargetValueObject["xYwLEVcXYYX"] + tbPiAnnualTargetValueObject["Y9CYNluAZfg"];
+            let femalePercentage = ((tbPiAnnualTargetValueObject["Y9CYNluAZfg"] / total) * 100).toFixed(1);
+
+            // Add the new keys to the inner object
+            tbPiAnnualTargetValueObject.total = total;
+            tbPiAnnualTargetValueObject.femalePercentage = femalePercentage;
+            if (tbPiAnnualTargetTableDomMap[key]) {
+
+              if (tbPiAnnualTargetTableDomMap[key]["total"]) {
+                // Update the corresponding table cell
+                tbPiAnnualTargetTableDomMap[key]["total"].textContent = total;
+              }
+
+              if (tbPiAnnualTargetTableDomMap[key]["femalePercentage"]) {
+                // Update the corresponding table cell
+                tbPiAnnualTargetTableDomMap[key]["femalePercentage"].textContent = femalePercentage;
+              }
+
+            }
+
+          });
+
+          //Calculate all Ratio Indicators
+
+          //1.PresumptiveByScreened
+          let presumptiveByScreenedMale = ((tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let presumptiveByScreenedFemale = ((tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let presumptiveByScreenedTotal = (((tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["presumptiveByScreened"]["male"].textContent = presumptiveByScreenedMale
+          tbPiRatioIndicatorTableDomMap["presumptiveByScreened"]["female"].textContent = presumptiveByScreenedFemale
+          tbPiRatioIndicatorTableDomMap["presumptiveByScreened"]["total"].textContent = presumptiveByScreenedTotal
+
+          //2.TestedByPresumptive
+          let testedByPresumptiveMale = ((tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let testedByPresumptiveFemale = ((tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let testedByPresumptiveTotal = (((tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["testedByPresumptive"]["male"].textContent = testedByPresumptiveMale
+          tbPiRatioIndicatorTableDomMap["testedByPresumptive"]["female"].textContent = testedByPresumptiveFemale
+          tbPiRatioIndicatorTableDomMap["testedByPresumptive"]["total"].textContent = testedByPresumptiveTotal
+
+          //3.bplusByTested
+          let bplusByTestedMale = ((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let bplusByTestedFemale = ((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let bplusByTestedTotal = (((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["bplusByTested"]["male"].textContent = bplusByTestedMale
+          tbPiRatioIndicatorTableDomMap["bplusByTested"]["female"].textContent = bplusByTestedFemale
+          tbPiRatioIndicatorTableDomMap["bplusByTested"]["total"].textContent = bplusByTestedTotal
+
+          //4.bplusByScreened
+          let bplusByScreenedMale = ((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let bplusByScreenedFemale = ((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let bplusByScreenedTotal = (((tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["bplusByScreened"]["male"].textContent = bplusByScreenedMale
+          tbPiRatioIndicatorTableDomMap["bplusByScreened"]["female"].textContent = bplusByScreenedFemale
+          tbPiRatioIndicatorTableDomMap["bplusByScreened"]["total"].textContent = bplusByScreenedTotal
+
+          //5.treatedByBplus
+          let treatedByBplusMale = ((tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let treatedByBplusFemale = ((tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let treatedByBplusTotal = (((tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["treatedByBplus"]["male"].textContent = treatedByBplusMale
+          tbPiRatioIndicatorTableDomMap["treatedByBplus"]["female"].textContent = treatedByBplusFemale
+          tbPiRatioIndicatorTableDomMap["treatedByBplus"]["total"].textContent = treatedByBplusTotal
+
+          //6.treatedByAfDiagnosed
+          let treatedByAfDiagnosedMale = ((tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["ej61pTdogQJ"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let treatedByAfDiagnosedFemale = ((tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["ej61pTdogQJ"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let treatedByAfDiagnosedTotal = (((tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["ej61pTdogQJ"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ej61pTdogQJ"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["treatedByAfDiagnosed"]["male"].textContent = treatedByAfDiagnosedMale
+          tbPiRatioIndicatorTableDomMap["treatedByAfDiagnosed"]["female"].textContent = treatedByAfDiagnosedFemale
+          tbPiRatioIndicatorTableDomMap["treatedByAfDiagnosed"]["total"].textContent = treatedByAfDiagnosedTotal
+
+
+          //7.successRateBplus
+          let bplusTreatmentSuccessRateMale = ((tbPiAnnualTargetValueMap["mjtuGNzTNzD"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let bplusTreatmentSuccessRateFemale = ((tbPiAnnualTargetValueMap["mjtuGNzTNzD"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let bplusTreatmentSuccessRateTotal = (((tbPiAnnualTargetValueMap["mjtuGNzTNzD"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["mjtuGNzTNzD"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["xuubpG6Xtaz"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["bplusTreatmentSuccessRate"]["male"].textContent = bplusTreatmentSuccessRateMale
+          tbPiRatioIndicatorTableDomMap["bplusTreatmentSuccessRate"]["female"].textContent = bplusTreatmentSuccessRateFemale
+          tbPiRatioIndicatorTableDomMap["bplusTreatmentSuccessRate"]["total"].textContent = bplusTreatmentSuccessRateTotal
+
+          //8.afTreatmentSuccessRate
+          let afTreatmentSuccessRateMale = ((tbPiAnnualTargetValueMap["jRMvzyD4Ubu"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let afTreatmentSuccessRateFemale = ((tbPiAnnualTargetValueMap["jRMvzyD4Ubu"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let afTreatmentSuccessRateTotal = (((tbPiAnnualTargetValueMap["jRMvzyD4Ubu"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["jRMvzyD4Ubu"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["afTreatmentSuccessRate"]["male"].textContent = afTreatmentSuccessRateMale
+          tbPiRatioIndicatorTableDomMap["afTreatmentSuccessRate"]["female"].textContent = afTreatmentSuccessRateFemale
+          tbPiRatioIndicatorTableDomMap["afTreatmentSuccessRate"]["total"].textContent = afTreatmentSuccessRateTotal
+
+
+          //9.nnsPresumptive
+          let nnsPresumptiveMale = (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"]).toFixed(1);
+          let nnsPresumptiveFemale = (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"]).toFixed(1);
+          let nnsPresumptiveTotal = ((tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["w6s6b0oGCYl"]["Y9CYNluAZfg"])).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["nnsPresumptive"]["male"].textContent = nnsPresumptiveMale
+          tbPiRatioIndicatorTableDomMap["nnsPresumptive"]["female"].textContent = nnsPresumptiveFemale
+          tbPiRatioIndicatorTableDomMap["nnsPresumptive"]["total"].textContent = nnsPresumptiveTotal
+
+          //10.nntBplusDiagnosed
+          let nntBplusDiagnosedMale = (tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]).toFixed(1);
+          let nntBplusDiagnosedFemale = (tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"]).toFixed(1);
+          let nntBplusDiagnosedTotal = ((tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ogiA4hkEFOP"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["p3o7bokIYCg"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["p3o7bokIYCg"]["Y9CYNluAZfg"])).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["nntBplusDiagnosed"]["male"].textContent = nntBplusDiagnosedMale
+          tbPiRatioIndicatorTableDomMap["nntBplusDiagnosed"]["female"].textContent = nntBplusDiagnosedFemale
+          tbPiRatioIndicatorTableDomMap["nntBplusDiagnosed"]["total"].textContent = nntBplusDiagnosedTotal
+
+          //11.nnsAfTreated
+          let nnsAfTreatedMale = (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"] / tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"]).toFixed(1);
+          let nnsAfTreatedFemale = (tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"] / tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"]).toFixed(1);
+          let nnsAfTreatedTotal = ((tbPiAnnualTargetValueMap["BDTjifNhpVS"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["BDTjifNhpVS"]["Y9CYNluAZfg"]) / (tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["xYwLEVcXYYX"]+tbPiAnnualTargetValueMap["ipCSd2E4gOw"]["Y9CYNluAZfg"])).toFixed(1);
+          tbPiRatioIndicatorTableDomMap["nnsAfTreated"]["male"].textContent = nnsAfTreatedMale
+          tbPiRatioIndicatorTableDomMap["nnsAfTreated"]["female"].textContent = nnsAfTreatedFemale
+          tbPiRatioIndicatorTableDomMap["nnsAfTreated"]["total"].textContent = nnsAfTreatedTotal
+
+        })
+        .catch(error => console.error("Error fetching tb pi targets: ", error));
+    }
+
+    fetchTBProcessIndicatorTargets(tbPiTargetsUrl);
+
+    var pneumoconiosisTargetUrl = "../api/41/dataValueSets.json?dataSet=gxQ7FbeSESx&period=2025&orgUnit=" + dhis2.report.organisationUnit.id;
+
+    function fetchPneumoconiosisTargets(url) {
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          var pneumoconiosisTargetTableDomMap = {
+            "QWAsanTDKMe": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-identifiedForEvaluation-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-identifiedForEvaluation-female'),
+              "total": document.getElementById('pneumoconiosis-identifiedForEvaluation-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-identifiedForEvaluation-female-percentage'),
+            },
+            "CuohbAMrD7a": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-confirmatoryDiagnosis-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-confirmatoryDiagnosis-female'),
+              "total": document.getElementById('pneumoconiosis-confirmatoryDiagnosis-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-confirmatoryDiagnosis-female-percentage'),
+            },
+            "IdmuDcTzctz": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-eligibleScreening-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-eligibleScreening-female'),
+              "total": document.getElementById('pneumoconiosis-eligibleScreening-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-eligibleScreening-female-percentage'),
+            },
+            "st34VWEwBwl": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-undergoEvaluation-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-undergoEvaluation-female'),
+              "total": document.getElementById('pneumoconiosis-undergoEvaluation-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-undergoEvaluation-female-percentage'),
+            },
+            "vl68GsY91YY": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-conditionTreatment-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-conditionTreatment-female'),
+              "total": document.getElementById('pneumoconiosis-conditionTreatment-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-conditionTreatment-female-percentage'),
+            },
+            "nqQOAR0FzMr": {
+              "xYwLEVcXYYX": document.getElementById('pneumoconiosis-screened-male'),
+              "Y9CYNluAZfg": document.getElementById('pneumoconiosis-screened-female'),
+              "total": document.getElementById('pneumoconiosis-screened-total'),
+              "femalePercentage": document.getElementById('pneumoconiosis-screened-female-percentage'),
+            }
+          };
+          var pneumoconiosisTargetValueMap = {
+            "QWAsanTDKMe": {
+            },
+            "CuohbAMrD7a": {
+            },
+            "IdmuDcTzctz": {
+            },
+            "st34VWEwBwl": {
+            },
+            "vl68GsY91YY": {
+            },
+            "nqQOAR0FzMr": {
+            }
+
+          };
+
+          var pneumoconiosisRatioIndicatorTableDomMap = {
+            "screenedByEligible" : {
+              "male" : document.getElementById('pneumoconiosis-screenedByEligible-male'),
+              "female" : document.getElementById('pneumoconiosis-screenedByEligible-female'),
+              "total" : document.getElementById('pneumoconiosis-screenedByEligible-total')
+            },
+            "identifiedByScreened" : {
+              "male" : document.getElementById('pneumoconiosis-identifiedByScreened-male'),
+              "female" : document.getElementById('pneumoconiosis-identifiedByScreened-female'),
+              "total" : document.getElementById('pneumoconiosis-identifiedByScreened-total')
+            },
+            "evaluatedByIdentified" : {
+              "male" : document.getElementById('pneumoconiosis-evaluatedByIdentified-male'),
+              "female" : document.getElementById('pneumoconiosis-evaluatedByIdentified-female'),
+              "total" : document.getElementById('pneumoconiosis-evaluatedByIdentified-total')
+            },
+            "confirmedByEvaluated" : {
+              "male" : document.getElementById('pneumoconiosis-confirmedByEvaluated-male'),
+              "female" : document.getElementById('pneumoconiosis-confirmedByEvaluated-female'),
+              "total" : document.getElementById('pneumoconiosis-confirmedByEvaluated-total')
+            },
+            "treatmentByConfirmed" : {
+              "male" : document.getElementById('pneumoconiosis-treatmentByConfirmed-male'),
+              "female" : document.getElementById('pneumoconiosis-treatmentByConfirmed-female'),
+              "total" : document.getElementById('pneumoconiosis-treatmentByConfirmed-total')
+            }
+          }
+
+          data.dataValues.forEach(dataValue => {
+            
+            // Check if the quarter and code are valid in the tableDomMap
+            if (pneumoconiosisTargetTableDomMap[dataValue.dataElement] && pneumoconiosisTargetTableDomMap[dataValue.dataElement][dataValue.categoryOptionCombo]) {
+              // Update the corresponding table cell
+              pneumoconiosisTargetTableDomMap[dataValue.dataElement][dataValue.categoryOptionCombo].textContent = dataValue.value;
+              const intValue = parseInt(dataValue.value, 10);
+              if (!isNaN(intValue)) {
+                pneumoconiosisTargetValueMap[dataValue.dataElement][dataValue.categoryOptionCombo] = intValue;
+              } else {
+                console.error(`Invalid integer value: ${dataValue.value}`);
+              }
+            }
+          });
+
+          // Iterate over the outer object's keys
+          Object.keys(pneumoconiosisTargetValueMap).forEach(key => {
+            let pneumoconiosisTargetValueObject = pneumoconiosisTargetValueMap[key];
+
+            // Calculate total and female percentage
+            let total = pneumoconiosisTargetValueObject["xYwLEVcXYYX"] + pneumoconiosisTargetValueObject["Y9CYNluAZfg"];
+            let femalePercentage = ((pneumoconiosisTargetValueObject["Y9CYNluAZfg"] / total) * 100).toFixed(1);
+
+            // Add the new keys to the inner object
+            pneumoconiosisTargetValueObject.total = total;
+            pneumoconiosisTargetValueObject.femalePercentage = femalePercentage;
+            if (pneumoconiosisTargetTableDomMap[key]) {
+
+              if (pneumoconiosisTargetTableDomMap[key]["total"]) {
+                // Update the corresponding table cell
+                pneumoconiosisTargetTableDomMap[key]["total"].textContent = total
+              }
+
+              if (pneumoconiosisTargetTableDomMap[key]["femalePercentage"]) {
+                // Update the corresponding table cell
+                pneumoconiosisTargetTableDomMap[key]["femalePercentage"].textContent = femalePercentage
+              }
+
+            }
+
+          });
+
+          //Calculate all Ratio Indicators - Pneuomoconiosis
+
+          //1.ScreenedByEligible
+          let screenedByEligibleMale = ((pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["xYwLEVcXYYX"] / pneumoconiosisTargetValueMap["IdmuDcTzctz"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let screenedByEligibleFemale = ((pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["Y9CYNluAZfg"] / pneumoconiosisTargetValueMap["IdmuDcTzctz"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let screenedByEligibleTotal = (((pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["Y9CYNluAZfg"]) / (pneumoconiosisTargetValueMap["IdmuDcTzctz"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["IdmuDcTzctz"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          pneumoconiosisRatioIndicatorTableDomMap["screenedByEligible"]["male"].textContent = screenedByEligibleMale
+          pneumoconiosisRatioIndicatorTableDomMap["screenedByEligible"]["female"].textContent = screenedByEligibleFemale
+          pneumoconiosisRatioIndicatorTableDomMap["screenedByEligible"]["total"].textContent = screenedByEligibleTotal
+
+          //2.IdentifiedByScreened
+          let identifiedByScreenedMale = ((pneumoconiosisTargetValueMap["QWAsanTDKMe"]["xYwLEVcXYYX"] / pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let identifiedByScreenedFemale = ((pneumoconiosisTargetValueMap["QWAsanTDKMe"]["Y9CYNluAZfg"] / pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let identifiedByScreenedTotal = (((pneumoconiosisTargetValueMap["QWAsanTDKMe"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["QWAsanTDKMe"]["Y9CYNluAZfg"]) / (pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["nqQOAR0FzMr"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          pneumoconiosisRatioIndicatorTableDomMap["identifiedByScreened"]["male"].textContent = identifiedByScreenedMale
+          pneumoconiosisRatioIndicatorTableDomMap["identifiedByScreened"]["female"].textContent = identifiedByScreenedFemale
+          pneumoconiosisRatioIndicatorTableDomMap["identifiedByScreened"]["total"].textContent = identifiedByScreenedTotal
+
+          //3.evaluatedByIdentified
+          let evaluatedByIdentifiedMale = ((pneumoconiosisTargetValueMap["st34VWEwBwl"]["xYwLEVcXYYX"] / pneumoconiosisTargetValueMap["QWAsanTDKMe"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let evaluatedByIdentifiedFemale = ((pneumoconiosisTargetValueMap["st34VWEwBwl"]["Y9CYNluAZfg"] / pneumoconiosisTargetValueMap["QWAsanTDKMe"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let evaluatedByIdentifiedTotal = (((pneumoconiosisTargetValueMap["st34VWEwBwl"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["st34VWEwBwl"]["Y9CYNluAZfg"]) / (pneumoconiosisTargetValueMap["QWAsanTDKMe"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["QWAsanTDKMe"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          pneumoconiosisRatioIndicatorTableDomMap["evaluatedByIdentified"]["male"].textContent = evaluatedByIdentifiedMale
+          pneumoconiosisRatioIndicatorTableDomMap["evaluatedByIdentified"]["female"].textContent = evaluatedByIdentifiedFemale
+          pneumoconiosisRatioIndicatorTableDomMap["evaluatedByIdentified"]["total"].textContent = evaluatedByIdentifiedTotal
+
+           //4.confirmedByEvaluated
+          let confirmedByEvaluatedMale = ((pneumoconiosisTargetValueMap["CuohbAMrD7a"]["xYwLEVcXYYX"] / pneumoconiosisTargetValueMap["st34VWEwBwl"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let confirmedByEvaluatedFemale = ((pneumoconiosisTargetValueMap["CuohbAMrD7a"]["Y9CYNluAZfg"] / pneumoconiosisTargetValueMap["st34VWEwBwl"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let confirmedByEvaluatedTotal = (((pneumoconiosisTargetValueMap["CuohbAMrD7a"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["CuohbAMrD7a"]["Y9CYNluAZfg"]) / (pneumoconiosisTargetValueMap["st34VWEwBwl"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["st34VWEwBwl"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          pneumoconiosisRatioIndicatorTableDomMap["confirmedByEvaluated"]["male"].textContent = confirmedByEvaluatedMale
+          pneumoconiosisRatioIndicatorTableDomMap["confirmedByEvaluated"]["female"].textContent = confirmedByEvaluatedFemale
+          pneumoconiosisRatioIndicatorTableDomMap["confirmedByEvaluated"]["total"].textContent = confirmedByEvaluatedTotal
+
+
+          //5.treatmentByConfirmed
+          let treatmentByConfirmedMale = ((pneumoconiosisTargetValueMap["vl68GsY91YY"]["xYwLEVcXYYX"] / pneumoconiosisTargetValueMap["CuohbAMrD7a"]["xYwLEVcXYYX"]) * 100).toFixed(1);
+          let treatmentByConfirmedFemale = ((pneumoconiosisTargetValueMap["vl68GsY91YY"]["Y9CYNluAZfg"] / pneumoconiosisTargetValueMap["CuohbAMrD7a"]["Y9CYNluAZfg"]) * 100).toFixed(1);
+          let treatmentByConfirmedTotal = (((pneumoconiosisTargetValueMap["vl68GsY91YY"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["vl68GsY91YY"]["Y9CYNluAZfg"]) / (pneumoconiosisTargetValueMap["CuohbAMrD7a"]["xYwLEVcXYYX"]+pneumoconiosisTargetValueMap["CuohbAMrD7a"]["Y9CYNluAZfg"])) * 100).toFixed(1);
+          pneumoconiosisRatioIndicatorTableDomMap["treatmentByConfirmed"]["male"].textContent = treatmentByConfirmedMale
+          pneumoconiosisRatioIndicatorTableDomMap["treatmentByConfirmed"]["female"].textContent = treatmentByConfirmedFemale
+          pneumoconiosisRatioIndicatorTableDomMap["treatmentByConfirmed"]["total"].textContent = treatmentByConfirmedTotal
+        })
+        .catch(error => console.error("Error fetching tb pi targets: ", error));
+    }
+
+    fetchPneumoconiosisTargets(pneumoconiosisTargetUrl);
+
+
+
+    $("#a01").attr("src", "../api/visualizations/i9LuvW0bEBQ/data.png?width=930&height=400&ou=" + dhis2.report.organisationUnit.id);
+    $("#a02").attr("src", "../api/visualizations/BZyHViWW5g7/data.png?width=930&height=400&ou=" + dhis2.report.organisationUnit.id);
+    $("#a03").attr("src", "../api/visualizations/rXpWORikSwq/data.png?width=930&height=400&ou=" + dhis2.report.organisationUnit.id);
+
+  });
+</script>
+
+<button id="download-btn" onclick="downloadPdf()">Download as PDF</button>
+
+<script>
+  function downloadPdf() {
+
+    // Target the element to convert
+    const content = document.getElementById("standard-report-content");
+
+    // Options for html2pdf.js
+    const options = {
+      margin: 0.5,             // Margins (in cm)
+      pagebreak: { mode: 'avoid-all', after: '.textarea' },
+      filename: dhis2.report.organisationUnit.name + '-Report.pdf', // Output filename
+      image: { type: 'jpeg', quality: 0.98 }, // Image quality
+      html2canvas: { scale: 2, useCORS: true },   // Resolution factor for canvas
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } // PDF format
+    };
+
+    // Convert the content to PDF and trigger download
+    html2pdf().set(options).from(content).save();
+
+
+    // Target the element to convert
+    //const content = document.getElementById("standard-report-content");
+    //html2pdf(content); 
+  }
+</script>
+
+<div id="standard-report-content">
+  <h1>Baseline Validation Report | TB REACH Wave 11 Monitoring & Evaluation</h1>
+
+  <p>Date of Download: <span id="DateOfDownload"></span></p>
+  <p>Grantee: <span id="GranteeName"></span></p>
+  <p>Project Code: <span id="ProjectCode"></span></p>
+  <p>Project Name: <span id="ProjectName"></span></p>
+  <p>Country: <span id="Country"></span></p>
+
+
+  <h2>Status of NTP Case Registration in EP and CP</h2>
+
+  <h3>All Forms TB Notifications</h3>
+
+  <img id="a01">
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+
+
+  <h3>New and Relapse TB Notifications</h3>
+  <img id="a02">
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+
+  <h3> TB Additionality Targets </h3>
+  <!-- Outer Table with 2 rows and 2 columns -->
+  <table class="dhis2-table">
+    <tr>
+      <td>
+        <h4>January-March 2025</h4>
+
+        <!-- Inner Table (2 rows, 2 columns) for the first cell -->
+        <table class="dhis2-table">
+          <tr>
+            <td>Flat quarterly All forms TB additionality target</td>
+            <td><span id="data11"></span></td>
+          </tr>
+          <tr>
+
+            <td>Flat quarterly Bac+ TB additionality target</td>
+            <td><span id="data12"></span></td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <h4>April-June 2025</h4>
+
+        <!-- Inner Table (2 rows, 2 columns) for the second cell -->
+        <table class="dhis2-table">
+          <tr>
+            <td>Flat quarterly All forms TB additionality target</td>
+            <td><span id="data21"></span></td>
+
+          </tr>
+          <tr>
+
+            <td>Flat quarterly Bac+ TB additionality target</td>
+            <td><span id="data22"></span></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <h4>July-September 2025</h4>
+
+        <!-- Inner Table (2 rows, 2 columns) for the third cell -->
+        <table class="dhis2-table">
+          <tr>
+            <td>Flat quarterly All forms TB additionality target</td>
+            <td><span id="data31"></span></td>
+
+          </tr>
+          <tr>
+            <td>Flat quarterly Bac+ TB additionality target</td>
+            <td><span id="data32"></span></td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <h4>October-December 2025</h4>
+
+        <!-- Inner Table (2 rows, 2 columns) for the fourth cell -->
+        <table class="dhis2-table">
+          <tr>
+            <td>Flat quarterly All forms TB additionality target</td>
+            <td><span id="data41"></span></td>
+
+          </tr>
+          <tr>
+            <td>Flat quarterly Bac+ TB additionality target</td>
+            <td><span id="data42"></span></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+
+  <h3>Baseline TB Notification Rates</h3>
+  <img id="a03">
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+
+  <h3> TB Process Indicator Targets </h3>
+
+
+
+  <table class="dhis2-table">
+    <thead>
+      <tr>
+        <th>Annual Targets</th>
+        <th>Male</th>
+        <th>Female</th>
+        <th>Female %</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td>People Screened</td>
+        <td id="screened-male"></td>
+        <td id="screened-female"></td>
+        <td id="screened-female-percentage"></td>
+        <td id="screened-total"></td>
+      </tr>
+      <tr>
+        <td>People with Presumptive TB</td>
+        <td id="presumptive-male"></td>
+        <td id="presumptive-female"></td>
+        <td id="presumptive-female-percentage"></td>
+        <td id="presumptive-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people tested</td>
+        <td id="tested-male"></td>
+        <td id="tested-female"></td>
+        <td id="tested-female-percentage"></td>
+        <td id="tested-total"></td>
+      </tr>
+      <tr>
+        <td>People with laboratory-confirmed TB</td>
+        <td id="bplustb-diagnosed-male"></td>
+        <td id="bplustb-diagnosed-female"></td>
+        <td id="bplustb-diagnosed-female-percentage"></td>
+        <td id="bplustb-diagnosed-total"></td>
+      </tr>
+      <tr>
+        <td>Peole diagnosed with All Forms TB</td>
+        <td id="aftb-diagnosed-male"></td>
+        <td id="aftb-diagnosed-female"></td>
+        <td id="aftb-diagnosed-female-percentage"></td>
+        <td id="aftb-diagnosed-total"></td>
+      </tr>
+      <tr>
+        <td>B+ TB patient started on treatment</td>
+        <td id="bplustb-startedtreatment-male"></td>
+        <td id="bplustb-startedtreatment-female"></td>
+        <td id="bplustb-startedtreatment-female-percentage"></td>
+        <td id="bplustb-startedtreatment-total"></td>
+      </tr>
+      <tr>
+        <td>AF TB patient started on treatment</td>
+        <td id="aftb-startedtreatment-male"></td>
+        <td id="aftb-startedtreatment-female"></td>
+        <td id="aftb-startedtreatment-female-percentage"></td>
+        <td id="aftb-startedtreatment-total"></td>
+      </tr>
+      <tr>
+        <td>B+ TB patient successfully treated</td>
+        <td id="bplustb-successfullytreated-male"></td>
+        <td id="bplustb-successfullytreated-female"></td>
+        <td id="bplustb-successfullytreated-female-percentage"></td>
+        <td id="bplustb-successfullytreated-total"></td>
+      </tr>
+      <tr>
+        <td>All Forms TB patient successfully treated</td>
+        <td id="aftb-successfullytreated-male"></td>
+        <td id="aftb-successfullytreated-female"></td>
+        <td id="aftb-successfullytreated-female-percentage"></td>
+        <td id="aftb-successfullytreated-total"></td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="dhis2-table">
+    <thead>
+      <tr>
+        <th>Ratio Indicators</th>
+        <th>Male</th>
+        <th>Female</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Generate 10 rows dynamically -->
+      <tr>
+        <td>% Presumptives / screened</td>
+        <td id="presumptiveByScreened-male"></td>
+        <td id="presumptiveByScreened-female"></td>
+        <td id="presumptiveByScreened-total"></td>
+      </tr>
+      <tr>
+        <td>% Tested / presumptives</td>
+        <td id="testedByPresumptive-male"></td>
+        <td id="testedByPresumptive-female"></td>
+        <td id="testedByPresumptive-total"></td>
+      </tr>
+      <tr>
+        <td>% Bac+ / tested</td>
+        <td id="bplusByTested-male"></td>
+        <td id="bplusByTested-female"></td>
+        <td id="bplusByTested-total"></td>
+      </tr>
+      <tr>
+        <td>% Bac+ / screened</td>
+        <td id="bplusByScreened-male"></td>
+        <td id="bplusByScreened-female"></td>
+        <td id="bplusByScreened-total"></td>
+      </tr>
+      <tr>
+        <td>% Treated / Bac+</td>
+        <td id="treatedByBplus-male"></td>
+        <td id="treatedByBplus-female"></td>
+        <td id="treatedByBplus-total"></td>
+      </tr>
+      <tr>
+        <td>% Treated / AF diagnosed</td>
+        <td id="treatedByAfDiagnosed-male"></td>
+        <td id="treatedByAfDiagnosed-female"></td>
+        <td id="treatedByAfDiagnosed-total"></td>
+      </tr>
+      <tr>
+        <td>Treatment Success Rate (Bact+)</td>
+        <td id="bplusTreatmentSuccessRate-male"></td>
+        <td id="bplusTreatmentSuccessRate-female"></td>
+        <td id="bplusTreatmentSuccessRate-total"></td>
+      </tr>
+      <tr>
+        <td>Treatment Success Rate (All Forms)</td>
+        <td id="afTreatmentSuccessRate-male"></td>
+        <td id="afTreatmentSuccessRate-female"></td>
+        <td id="afTreatmentSuccessRate-total"></td>
+      </tr>
+      <tr>
+        <td>NNS (presumptive)</td>
+        <td id="nnsPresumptive-male"></td>
+        <td id="nnsPresumptive-female"></td>
+        <td id="nnsPresumptive-total"></td>
+      </tr>
+      <tr>
+        <td>NNT (B+ diagnosed)</td>
+        <td id="nntBplusDiagnosed-male"></td>
+        <td id="nntBplusDiagnosed-female"></td>
+        <td id="nntBplusDiagnosed-total"></td>
+      </tr>
+      <tr>
+        <td>NNS (AF treated)</td>
+        <td id="nnsAfTreated-male"></td>
+        <td id="nnsAfTreated-female"></td>
+        <td id="nnsAfTreated-total"></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+
+  <h3> Non-TB Lung Health Indicator Targets </h3>
+  <h4> Pneumoconiosis </h4>
+  <table class="dhis2-table">
+    <thead>
+      <tr>
+        <th>Project Targets</th>
+        <th>Male</th>
+        <th>Female</th>
+        <th>Female %</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Generate 10 rows dynamically -->
+      <tr>
+        <td>Number of people eligible for screening</td>
+        <td id="pneumoconiosis-eligibleScreening-male"></td>
+        <td id="pneumoconiosis-eligibleScreening-female"></td>
+        <td id="pneumoconiosis-eligibleScreening-female-percentage"></td>
+        <td id="pneumoconiosis-eligibleScreening-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people screened</td>
+        <td id="pneumoconiosis-screened-male"></td>
+        <td id="pneumoconiosis-screened-female"></td>
+        <td id="pneumoconiosis-screened-female-percentage"></td>
+        <td id="pneumoconiosis-screened-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people identified or referred for further evaluation</td>
+        <td id="pneumoconiosis-identifiedForEvaluation-male"></td>
+        <td id="pneumoconiosis-identifiedForEvaluation-female"></td>
+        <td id="pneumoconiosis-identifiedForEvaluation-female-percentage"></td>
+        <td id="pneumoconiosis-identifiedForEvaluation-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people who undergo evaluation or tests</td>
+        <td id="pneumoconiosis-undergoEvaluation-male"></td>
+        <td id="pneumoconiosis-undergoEvaluation-female"></td>
+        <td id="pneumoconiosis-undergoEvaluation-female-percentage"></td>
+        <td id="pneumoconiosis-undergoEvaluation-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people who receive a confirmatory diagnosis of the condition or disease</td>
+        <td id="pneumoconiosis-confirmatoryDiagnosis-male"></td>
+        <td id="pneumoconiosis-confirmatoryDiagnosis-female"></td>
+        <td id="pneumoconiosis-confirmatoryDiagnosis-female-percentage"></td>
+        <td id="pneumoconiosis-confirmatoryDiagnosis-total"></td>
+      </tr>
+      <tr>
+        <td>Number of people with condition who receive specific treatment or care</td>
+        <td id="pneumoconiosis-conditionTreatment-male"></td>
+        <td id="pneumoconiosis-conditionTreatment-female"></td>
+        <td id="pneumoconiosis-conditionTreatment-female-percentage"></td>
+        <td id="pneumoconiosis-conditionTreatment-total"></td>
+      </tr>
+
+
+    </tbody>
+  </table>
+  <table class="dhis2-table">
+    <thead>
+      <tr>
+        <th>Ratio Indicators</th>
+        <th>Male</th>
+        <th>Female</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Generate 10 rows dynamically -->
+      <tr>
+        <td>% screened / eligible for screening</td>
+        <td id="pneumoconiosis-screenedByEligible-male"></td>
+        <td id="pneumoconiosis-screenedByEligible-female"></td>
+        <td id="pneumoconiosis-screenedByEligible-total"></td>
+      </tr>
+      <tr>
+        <td>%identified or referred / screened</td>
+        <td id="pneumoconiosis-identifiedByScreened-male"></td>
+        <td id="pneumoconiosis-identifiedByScreened-female"></td>
+        <td id="pneumoconiosis-identifiedByScreened-total"></td>
+      </tr>
+      <tr>
+        <td>% evaluated or tested / identified or referred</td>
+        <td id="pneumoconiosis-evaluatedByIdentified-male"></td>
+        <td id="pneumoconiosis-evaluatedByIdentified-female"></td>
+        <td id="pneumoconiosis-evaluatedByIdentified-total"></td>
+      </tr>
+      <tr>
+        <td>% received confirmatory diagnosis / evaluated or tested</td>
+        <td id="pneumoconiosis-confirmedByEvaluated-male"></td>
+        <td id="pneumoconiosis-confirmedByEvaluated-female"></td>
+        <td id="pneumoconiosis-confirmedByEvaluated-total"></td>
+      </tr>
+      <tr>
+        <td>% received treatment or care / received confirmatory diagnosis</td>
+        <td id="pneumoconiosis-treatmentByConfirmed-male"></td>
+        <td id="pneumoconiosis-treatmentByConfirmed-female"></td>
+        <td id="pneumoconiosis-treatmentByConfirmed-total"></td>
+      </tr>
+
+
+
+    </tbody>
+  </table>
+
+
+  <textarea class="textarea" placeholder="Reviewers enter observations here."></textarea>
+
+</div>
