@@ -148,11 +148,10 @@ def get_future_periods(starting_period, number):
 
 # Function that fetches dataValues for all the specified dataElementIds,
 # for all the specified orgUnitIds, for the specified periodsString. 
-# The function can fill Zeroes (0's) as dataValue if any period is missing an dataValue by using the fillZeroes parameter.
 # requiredPeriods is an array of period strings, which is used to compare if any dataValue is missing for any of the required periods.
 # This function returns an object as below
 # 
-def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredPeriods):
+def getDataValues(dataElementIds,orgUnitIds,periodsString, requiredPeriods):
     requiredPeriods.sort()
     dataElementQueryParam = ''
     orgUnitQueryParam=''
@@ -190,16 +189,15 @@ def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredP
         dataValueMap[orgUnit][dataElement]["periodValues"][period] = value
 
     
-    # Fill missing periods with zeroes if fillZeroes is true
+    # Fill missing periods with None i
     for orgUnit, dataElements in dataValueMap.items():
         for dataElement, dataElementData in dataElements.items():
             periodValues = dataElementData["periodValues"]
 
-            # Fill missing periods with zeroes
-            if fillZeroes:
-                for requiredPeriod in requiredPeriods:
+            # Fill missing periods with None
+            for requiredPeriod in requiredPeriods:
                     if requiredPeriod not in periodValues:
-                        periodValues[requiredPeriod] = "0"
+                        periodValues[requiredPeriod] = None
 
             # Code to fill dataValues
             dataElementData["dataValues"] = [
@@ -208,7 +206,7 @@ def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredP
             ]
             
             # Remove None values (if needed)
-            dataElementData["dataValues"] = [0 if value is None else value for value in dataElementData["dataValues"]]
+            #dataElementData["dataValues"] = [0 if value is None else value for value in dataElementData["dataValues"]]
 
         # Ensure all required dataElements exist for each orgUnit
     for orgUnit, dataElements in dataValueMap.items():
@@ -216,8 +214,8 @@ def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredP
             if requiredDataElementId not in dataElements:
                 # Create the missing data element with 12 zeroes
                 dataElements[requiredDataElementId] = {
-                    "periodValues": {period: "0" for period in requiredPeriods},
-                    "dataValues": [0] * len(requiredPeriods)
+                    "periodValues": {period: None for period in requiredPeriods},
+                    "dataValues": [None] * len(requiredPeriods)
                 }
 
     return dataValueMap
@@ -230,19 +228,31 @@ def getDataValues(dataElementIds,orgUnitIds,periodsString, fillZeroes, requiredP
 # yValues in our case is the dataValues corresponding to the baseline period number
 # numberOfPredictions is the number of future predictions required in the best fit line.
 # Example: if xValues : [1,2,3,4,5,6]
-#         and yValues : [8,22,28,42,48,62]
+#         and dataValuesWithNone : [8,None,28,None,48,62]
 #         and numberOfPredictions: 8
 # then this function returns the full predictions as [10, 20, 30, 40, 50, 60, 71, 81] (Best fit line)
-def calculatePredictions(xValues,yValues,numberOfPredictions):
+def calculatePredictions(dataValuesWithNone,numberOfPredictions):
+    #find xValues and yValues
+    yValues = []
+    xValues = []
+    for r in range(0,len(dataValuesWithNone)):
+         if dataValuesWithNone[r]!= None:
+              yValues.append(dataValuesWithNone[r])
+              xValues.append(r+1)
+    if len(yValues)<=1:
+         return []
+         
     x = np.array(xValues)
     y = np.array(yValues)
 
-        #find line of best fit
+    
+            #find line of best fit
     a, b = np.polyfit(x, y, 1)
     predictions =[]
     for p in range (1,numberOfPredictions+1):
         y=(a*p+b)
         predictions.append(round(y))
+
     return predictions
 
 ###################### HELPER FUNCTIONS END ################################
@@ -273,19 +283,19 @@ dataSetIdString = ",".join(dataSetIds)
 dataSetResults = d2get('dataSets.json?fields=name,organisationUnits&filter=id:in:['+dataSetIdString+']','dataSets')
 dataSetOrgUnits = [organisationUnit["id"] for dataSet in dataSetResults for organisationUnit in dataSet["organisationUnits"]]
 dataSetOrgUnits_set = set(dataSetOrgUnits)
-
 #Iterating over each project defined in config and calculating predictions one project at a time.
 for p in range(0,len(projects)):
+    currentBaselineEndQuarter = '2024Q4'
 
     #If baselineEndQuarter not specified in conf for this project, then skip this project and continue to next in loop
-    if (projects[p]['baselineEndQuarter'] == ''):
-        print('Skipping project: ' + projects[p]['projectName'] + ' due to missing baselineEndQuarter')
-        continue
+    if (projects[p]['baselineEndQuarter'] != ''):
+        currentBaselineEndQuarter = projects[p]['baselineEndQuarter']
 
-    pastPeriods = get_previous_periods(projects[p]['baselineEndQuarter'],numberOfPastQuarters)
+
+    pastPeriods = get_previous_periods(currentBaselineEndQuarter,numberOfPastQuarters)
     pastPeriods.sort()
 
-    pastAndFuturePeriods = pastPeriods + get_future_periods(projects[p]['baselineEndQuarter'],numberOfFutureQuarters)
+    pastAndFuturePeriods = pastPeriods + get_future_periods(currentBaselineEndQuarter,numberOfFutureQuarters)
     pastAndFuturePeriods.sort()
 
     pastPeriodString = ''
@@ -303,8 +313,7 @@ for p in range(0,len(projects)):
     for o in range(0, len(orgUnits), batch_size):
         orgUnitsBatched = orgUnits[o:o + batch_size]  # Slice the batch
 
-        dataValueResultMap = getDataValues(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,True,pastPeriods)
-        print(dataValueResultMap)
+        dataValueResultMap = getDataValues(inputDataElementIds+[pulmonaryBOther,pulmonaryCDOther,extraPulmonaryOther],orgUnitsBatched,pastPeriodString,pastPeriods)
         predictedAllFormsDataValues = []
         predictedNRDataValues= []
 
@@ -312,7 +321,9 @@ for p in range(0,len(projects)):
             orgUnit = orgUnitsBatched[b]
            
             if dataValueResultMap.get(orgUnit) is None:
+                print("No DVs for orgUnit" + orgUnit + "  obtained from api")
                 skippedOrgUnits = skippedOrgUnits+1
+                skippedNRPredictions.append(orgUnit )
                 continue
 
             for d in range(len(inputDataElementIds)):
@@ -321,20 +332,23 @@ for p in range(0,len(projects)):
                 outputDataElement = outputDataElementIds[d]
         
                 if dataValueResultMap[orgUnit].get(inputDataElement) is None:
+                    print("DV for dataElement" + inputDataElement + " not obtained from api for orgunit "+orgUnit )
                     skippedOrgUnits = skippedOrgUnits+1
+                    skippedNRPredictions.append(orgUnit+"-"+outputDataElement )
                     continue
 
                 dataValuesForDE = dataValueResultMap[orgUnit][inputDataElement]["dataValues"]
 
-                if len(dataValuesForDE)!=numberOfPastQuarters:
-                    print("Past dataValues of " +str(inputDataElement)+ " is not matching the number of past periods")
-                    skippedNRPredictions.append(orgUnit+"-"+str(inputDataElement))
-                    continue
 
-                predictions = calculatePredictions(quarter_numbers,dataValuesForDE,numberOfPastQuarters+numberOfFutureQuarters)
+                predictions = calculatePredictions(dataValuesForDE,numberOfPastQuarters+numberOfFutureQuarters)
+                if len(predictions) == 0:
+                    print("No NR predictions generated for "+orgUnit+"-"+outputDataElement )
+                    skippedOrgUnits = skippedOrgUnits+1
+                    skippedNRPredictions.append(orgUnit+"-"+outputDataElement )
+                    continue
+                     
                 pushedNRPredictions.append(orgUnit+"-"+outputDataElement)
-                print(dataValuesForDE)
-                print(predictions)
+     
                 for o in range(len(pastAndFuturePeriods)):
                     dataValue = { "categoryOptionCombo": defaultOption,
                     "attributeOptionCombo": defaultOption,
@@ -348,8 +362,7 @@ for p in range(0,len(projects)):
 
         
             if dataValueResultMap[orgUnit].get(pulmonaryBNR) is None or dataValueResultMap[orgUnit].get(pulmonaryBOther) is None or dataValueResultMap[orgUnit].get(pulmonaryCDNR) is None or dataValueResultMap[orgUnit].get(pulmonaryCDOther) is None or dataValueResultMap[orgUnit].get(extraPulmonaryNR) is None or dataValueResultMap[orgUnit].get(extraPulmonaryOther) is None:
-                print("Datavalue missing for one of allForms calculation. Skipping all forms prediction for orgUnit:"+orgUnit)
-                print(dataValueResultMap)
+                print("One of the ALl form DV not obtained from api for orgunit "+orgUnit )
                 skippedAllFormsPredictions.append(orgUnit)
                 continue
         
@@ -359,17 +372,34 @@ for p in range(0,len(projects)):
             pulmonaryCDOtherDataValues = dataValueResultMap[orgUnit][pulmonaryCDOther]["dataValues"]
             extraPulmonaryNRDataValues = dataValueResultMap[orgUnit][extraPulmonaryNR]["dataValues"]
             extraPulmonaryOtherDataValues = dataValueResultMap[orgUnit][extraPulmonaryOther]["dataValues"]
-            if len(pulmonaryBNRDataValues)!= numberOfPastQuarters or len(pulmonaryBOtherDataValues)!= numberOfPastQuarters or len(pulmonaryCDNRDataValues)!= numberOfPastQuarters or len(pulmonaryCDOtherDataValues)!= numberOfPastQuarters or len(extraPulmonaryNRDataValues)!= numberOfPastQuarters or len(extraPulmonaryOtherDataValues)!= numberOfPastQuarters :
-                print("Number of dataValues is not equals number of pastPeriods. Skipping all forms prediction for orgUnit:"+orgUnit)
-                skippedAllFormsPredictions.append(orgUnit)
-                continue
+          
         
 
             allFormsTotal = []
             for l in range(len(pulmonaryBNRDataValues)):
-                allFormsTotal.append(pulmonaryBNRDataValues[l]+pulmonaryBOtherDataValues[l]+pulmonaryCDNRDataValues[l]+pulmonaryCDOtherDataValues[l]+extraPulmonaryNRDataValues[l]+extraPulmonaryOtherDataValues[l])
+                allFormsValueItems = [
+                        pulmonaryBNRDataValues[l],
+                        pulmonaryBOtherDataValues[l],
+                        pulmonaryCDNRDataValues[l],
+                        pulmonaryCDOtherDataValues[l],
+                        extraPulmonaryNRDataValues[l],
+                        extraPulmonaryOtherDataValues[l]
+                        ]
+
+                if all(v is None for v in allFormsValueItems):
+                    allFormsTotal.append(None)
+                else:
+                    total = sum(v if v is not None else 0 for v in allFormsValueItems)
+                    allFormsTotal.append(total)
         
-            predictions = calculatePredictions(quarter_numbers,allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
+            predictions = calculatePredictions(allFormsTotal,numberOfPastQuarters+numberOfFutureQuarters)
+            if len(predictions) == 0:
+
+                    print("No all forms predictions generated for "+orgUnit+"-"+outputDataElement )
+                    skippedOrgUnits = skippedOrgUnits+1
+                    skippedNRPredictions.append(orgUnit+"-"+outputDataElement )
+                    continue
+                     
             print("All Forms values", allFormsTotal)
             print("AllForms Predictions:"+str(predictions))
 
