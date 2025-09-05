@@ -316,6 +316,9 @@ function renderDHIS2ReportTable(visualizationId, size = "S") {
 
   const styles = sizeStyles[size] || sizeStyles["S"];
 
+  // Check if this visualization needs total column
+  const needsTotalColumn = visualizationId === "SQsz6iQsotg" || visualizationId === "FdeJUobZIoV";
+
   fetch(`../api/visualizations/${visualizationId}/data.json?ou=`+dhis2.report.organisationUnit.id)
     .then(response => response.json())
     .then(data => {
@@ -417,6 +420,21 @@ function renderDHIS2ReportTable(visualizationId, size = "S") {
         }
       }
 
+      // Add Total column header if needed
+      if (needsTotalColumn) {
+        const totalTh = document.createElement("th");
+        totalTh.textContent = "Total";
+        totalTh.style.border = "1px solid #ccc";
+        totalTh.style.padding = styles.padding;
+        totalTh.style.background = "#f0f0f0";
+        totalTh.style.fontWeight = "bold";
+        totalTh.style.position = "sticky";
+        totalTh.style.top = "0";
+        totalTh.style.textAlign = "center";
+        totalTh.rowSpan = 2;
+        topHeaderRow.appendChild(totalTh);
+      }
+
       thead.appendChild(topHeaderRow);
       // Only add subheaderRow if there is at least one group with multiple subcolumns
       if (subHeaderRow.children.length > 0) {
@@ -440,6 +458,35 @@ function renderDHIS2ReportTable(visualizationId, size = "S") {
       rows.forEach((row, rowIndex) => {
         const tr = document.createElement("tr");
         tr.style.background = rowIndex % 2 === 0 ? "#ffffff" : "#f9f9f9";
+
+        // Calculate total for this row if needed
+        let rowTotal = 0;
+        let shouldCalculateTotal = false;
+        if (needsTotalColumn) {
+          // Only calculate totals for odd-numbered rows (1st, 3rd, 5th, 7th, etc.)
+          // Even-numbered rows contain percentages and should be skipped
+          shouldCalculateTotal = (rowIndex % 2 === 0); // rowIndex is 0-based, so even indices are odd-numbered rows
+          
+          if (shouldCalculateTotal) {
+            // Sum values from second column onwards (skip first column which is labels)
+            for (let i = 1; i < orderedHeaders.length; i++) {
+              const colIndex = data.headers.findIndex(orig => orig.column === orderedHeaders[i].column);
+              const rawValue = row[colIndex];
+              let val = rawValue || "";
+              
+              // Special handling for SQsz6iQsotg table - hide first column if quarter is not 2024q4
+              if ((visualizationId === "SQsz6iQsotg" || visualizationId ==="FdeJUobZIoV") && i === 1) {
+                if (calculatedQuarter !== "2024q4" ) {
+                  val = ""; // Make second column blank
+                }
+              }
+              
+              // Parse string to integer for calculation
+              const numVal = parseInt(val) || 0;
+              rowTotal += numVal;
+            }
+          }
+        }
 
         orderedHeaders.forEach((h, colIdx) => {
           const colIndex = data.headers.findIndex(orig => orig.column === h.column);
@@ -465,6 +512,22 @@ function renderDHIS2ReportTable(visualizationId, size = "S") {
 
           tr.appendChild(td);
         });
+
+        // Add Total column if needed
+        if (needsTotalColumn) {
+          const totalTd = document.createElement("td");
+          if (shouldCalculateTotal) {
+            totalTd.textContent = rowTotal.toString();
+            totalTd.style.fontWeight = "bold";
+            totalTd.style.background = "#f8f8f8";
+          } else {
+            totalTd.textContent = ""; // Blank for percentage rows
+          }
+          totalTd.style.border = "1px solid #ddd";
+          totalTd.style.padding = styles.padding;
+          totalTd.style.textAlign = "right";
+          tr.appendChild(totalTd);
+        }
 
         tbody.appendChild(tr);
       });
